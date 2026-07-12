@@ -9,126 +9,143 @@
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>
 </head>
 <body>
-    <aside class="sidebar">
-        <div class="logo">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-3px;margin-right:6px;">
-                <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
-            </svg>
-            wrapperctl
-            <small>AI website → OpenAI-compatible proxy</small>
-        </div>
+<aside class="sidebar">
+    <div class="logo">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             style="vertical-align:-3px;margin-right:6px;">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 6v6l4 2"/>
+        </svg>
+        wrapperctl
+        <small>AI website → OpenAI-compatible proxy</small>
+    </div>
 
-        <div class="nav-section">Production</div>
-        <nav>
-            <a href="/ui/" class="{% if active == 'dashboard' %}active{% endif %}">
+    <div class="nav-section">Production</div>
+    <nav>
+        <a href="/ui/" class="{% if active == 'dashboard' %}active{% endif %}">
                 <span class="nav-icon">
-                    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7"
+                                                                                           height="7"/><rect x="3"
+                                                                                                             y="14"
+                                                                                                             width="7"
+                                                                                                             height="7"/><rect
+                            x="14" y="14" width="7" height="7"/></svg>
                 </span>
-                Dashboard
-            </a>
-            <a href="/ui/templates" class="{% if active == 'templates' %}active{% endif %}">
+            Dashboard
+        </a>
+        <a href="/ui/templates" class="{% if active == 'templates' %}active{% endif %}">
                 <span class="nav-icon">
-                    <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                    <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline
+                            points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8"
+                                                                                                 y2="17"/></svg>
                 </span>
-                Providers
-            </a>
-            <a href="/ui/cookies" class="{% if active == 'cookies' %}active{% endif %}">
+            Providers
+        </a>
+        <a href="/ui/cookies" class="{% if active == 'cookies' %}active{% endif %}">
                 <span class="nav-icon">
-                    <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5"/><circle cx="8" cy="15" r="1"/><circle cx="14" cy="10" r="1"/><circle cx="17" cy="16" r="1"/></svg>
+                    <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5"/><circle
+                            cx="8" cy="15" r="1"/><circle cx="14" cy="10" r="1"/><circle cx="17" cy="16" r="1"/></svg>
                 </span>
-                Cookies
-            </a>
-            <a href="/ui/keys" class="{% if active == 'keys' %}active{% endif %}">
+            Cookies
+        </a>
+        <a href="/ui/keys" class="{% if active == 'keys' %}active{% endif %}">
                 <span class="nav-icon">
-                    <svg viewBox="0 0 24 24"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.78 7.78 5.5 5.5 0 0 1 7.78-7.78zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+                    <svg viewBox="0 0 24 24"><path
+                            d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.78 7.78 5.5 5.5 0 0 1 7.78-7.78zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
                 </span>
-                API Keys
-            </a>
-        </nav>
+            API Keys
+        </a>
+    </nav>
 
-        <div class="nav-section">Dev Tools</div>
-        <nav>
-            <a href="/ui/recorder" class="{% if active == 'recorder' %}active{% endif %}">
+    <div class="nav-section">Dev Tools</div>
+    <nav>
+        <a href="/ui/recorder" class="{% if active == 'recorder' %}active{% endif %}">
                 <span class="nav-icon">
                     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
                 </span>
-                Recorder
-            </a>
-            <a href="/ui/settings" class="{% if active == 'settings' %}active{% endif %}">
+            Recorder
+        </a>
+        <a href="/ui/settings" class="{% if active == 'settings' %}active{% endif %}">
                 <span class="nav-icon">
-                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path
+                            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
                 </span>
-                Settings
-            </a>
-        </nav>
-    </aside>
+            Settings
+        </a>
+    </nav>
+</aside>
 
-    <main class="main">
-        {% block content %}{% endblock %}
-    </main>
+<main class="main">
+    {% block content %}{% endblock %}
+</main>
 
-    <div id="modal"></div>
-    <div id="toast"></div>
+<div id="modal"></div>
+<div id="toast"></div>
 
-    <script>
-        // Toast notification system
-        function showToast(message, type) {
-            type = type || 'success';
-            var toast = document.getElementById('toast');
-            toast.innerHTML = '<div class="toast toast-' + type + ' fade-in">' + message + '</div>';
-            setTimeout(function() { toast.innerHTML = ''; }, 4000);
+<script>
+    // Toast notification system
+    function showToast(message, type) {
+        type = type || 'success';
+        var toast = document.getElementById('toast');
+        toast.innerHTML = '<div class="toast toast-' + type + ' fade-in">' + message + '</div>';
+        setTimeout(function () {
+            toast.innerHTML = '';
+        }, 4000);
+    }
+
+    // HTMX: auto-show toast from HX-Trigger header
+    document.body.addEventListener('htmx:afterSwap', function (evt) {
+        if (evt.detail.target.id === 'toast') {
+            setTimeout(function () {
+                document.getElementById('toast').innerHTML = '';
+            }, 4000);
         }
-
-        // HTMX: auto-show toast from HX-Trigger header
-        document.body.addEventListener('htmx:afterSwap', function(evt) {
-            if (evt.detail.target.id === 'toast') {
-                setTimeout(function() { document.getElementById('toast').innerHTML = ''; }, 4000);
-            }
-        });
-        document.body.addEventListener('htmx:responseError', function(evt) {
-            var xhr = evt.detail.xhr;
-            if (xhr) {
-                try {
-                    var err = JSON.parse(xhr.responseText);
-                    var msg = err.detail || '';
-                    if (Array.isArray(msg)) {
-                        msg = msg.map(function(m) {
-                            return m.msg || JSON.stringify(m);
-                        }).join('; ');
-                    }
-                    showToast(msg || 'Request failed (' + xhr.status + ')', 'error');
-                } catch(e) {
-                    showToast('Request failed (' + xhr.status + ')', 'error');
+    });
+    document.body.addEventListener('htmx:responseError', function (evt) {
+        var xhr = evt.detail.xhr;
+        if (xhr) {
+            try {
+                var err = JSON.parse(xhr.responseText);
+                var msg = err.detail || '';
+                if (Array.isArray(msg)) {
+                    msg = msg.map(function (m) {
+                        return m.msg || JSON.stringify(m);
+                    }).join('; ');
                 }
+                showToast(msg || 'Request failed (' + xhr.status + ')', 'error');
+            } catch (e) {
+                showToast('Request failed (' + xhr.status + ')', 'error');
             }
-        });
-        document.body.addEventListener('htmx:beforeSwap', function(evt) {
-            var headers = evt.detail.xhr.getAllResponseHeaders();
-            if (headers.indexOf('HX-Trigger') >= 0) {
-                try {
-                    var trigger = JSON.parse(evt.detail.xhr.getResponseHeader('HX-Trigger'));
-                    if (trigger.showToast) {
-                        evt.detail.shouldSwap = true;
-                        setTimeout(function() {
-                            showToast(trigger.showToast.message, trigger.showToast.type || 'success');
-                        }, 50);
-                    }
-                } catch(e) {}
+        }
+    });
+    document.body.addEventListener('htmx:beforeSwap', function (evt) {
+        var headers = evt.detail.xhr.getAllResponseHeaders();
+        if (headers.indexOf('HX-Trigger') >= 0) {
+            try {
+                var trigger = JSON.parse(evt.detail.xhr.getResponseHeader('HX-Trigger'));
+                if (trigger.showToast) {
+                    evt.detail.shouldSwap = true;
+                    setTimeout(function () {
+                        showToast(trigger.showToast.message, trigger.showToast.type || 'success');
+                    }, 50);
+                }
+            } catch (e) {
             }
-        });
+        }
+    });
 
-        // Modal: close only on full left-click outside the modal
-        var _mousedownOverlay = null;
-        document.addEventListener('mousedown', function(e) {
-            _mousedownOverlay = (e.button === 0 && e.target.classList.contains('modal-overlay'))
-                ? e.target : null;
-        });
-        document.addEventListener('mouseup', function(e) {
-            if (e.button === 0 && _mousedownOverlay && e.target.classList.contains('modal-overlay')) {
-                _mousedownOverlay.remove();
-            }
-            _mousedownOverlay = null;
-        });
-    </script>
+    // Modal: close only on full left-click outside the modal
+    var _mousedownOverlay = null;
+    document.addEventListener('mousedown', function (e) {
+        _mousedownOverlay = (e.button === 0 && e.target.classList.contains('modal-overlay'))
+            ? e.target : null;
+    });
+    document.addEventListener('mouseup', function (e) {
+        if (e.button === 0 && _mousedownOverlay && e.target.classList.contains('modal-overlay')) {
+            _mousedownOverlay.remove();
+        }
+        _mousedownOverlay = null;
+    });
+</script>
 </body>
 </html>

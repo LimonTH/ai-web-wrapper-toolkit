@@ -1,14 +1,9 @@
-"""
-Browser-based action recorder.
-Opens a browser via Playwright, injects JS to intercept actions.
-"""
 from __future__ import annotations
 
 from typing import Any
 
 from playwright.async_api import async_playwright
 
-from src.core.settings_service import get_settings_service
 from src.cookie_collector.browser import (
     _get_browser_args,
     _get_context_proxy,
@@ -17,16 +12,21 @@ from src.cookie_collector.browser import (
     _create_context,
     _safe_close_browser,
 )
-from src.recorder.scripts import get_full_script
+from src.core.settings_service import get_settings_service
+
+"""
+Browser-based action recorder.
+Opens a browser via Playwright, injects JS to intercept actions.
+"""
 
 
 async def record_actions(
-    url: str,
-    *,
-    cookies: list[dict[str, Any]] | None = None,
-    storage_state: dict[str, Any] | None = None,
-    headless: bool = False,
-    with_prompts: bool = True,
+        url: str,
+        *,
+        cookies: list[dict[str, Any]] | None = None,
+        storage_state: dict[str, Any] | None = None,
+        headless: bool = False,
+        with_prompts: bool = True,
 ) -> list[dict[str, Any]]:
     """
     Opens a browser, injects JS interceptors, waits for the browser to close,

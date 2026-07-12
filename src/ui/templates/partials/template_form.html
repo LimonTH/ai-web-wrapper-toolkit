@@ -36,21 +36,22 @@
 </div>
 
 <script>
-// Preview capabilities when URL changes
-document.getElementById('base-url-input').addEventListener('input', async function() {
-    const url = this.value.trim();
-    if (!url.startsWith('http')) return;
-    try {
-        const resp = await fetch('/api/templates/capabilities-preview?url=' + encodeURIComponent(url));
-        if (resp.ok) {
-            const data = await resp.json();
-            const container = document.getElementById('capabilities-list');
-            const preview = document.getElementById('capabilities-preview');
-            container.innerHTML = data.capabilities.map(function(c) {
-                return '<span class="tag tag-accent">' + c + '</span>';
-            }).join('');
-            preview.style.display = data.capabilities.length > 0 ? 'block' : 'none';
+    // Preview capabilities when URL changes
+    document.getElementById('base-url-input').addEventListener('input', async function () {
+        const url = this.value.trim();
+        if (!url.startsWith('http')) return;
+        try {
+            const resp = await fetch('/api/templates/capabilities-preview?url=' + encodeURIComponent(url));
+            if (resp.ok) {
+                const data = await resp.json();
+                const container = document.getElementById('capabilities-list');
+                const preview = document.getElementById('capabilities-preview');
+                container.innerHTML = data.capabilities.map(function (c) {
+                    return '<span class="tag tag-accent">' + c + '</span>';
+                }).join('');
+                preview.style.display = data.capabilities.length > 0 ? 'block' : 'none';
+            }
+        } catch (e) {
         }
-    } catch(e) {}
-});
+    });
 </script>

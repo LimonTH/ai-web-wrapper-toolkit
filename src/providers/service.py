@@ -11,6 +11,7 @@ from src.core.schemas import (
     VirtualApiKeyCreate,
 )
 from src.providers.generator import generate_virtual_key
+from src.proxy.providers.registry import get_registry
 
 
 async def get_all_templates(db: AsyncSession) -> list[WebsiteTemplate]:
@@ -27,7 +28,6 @@ async def get_template_by_id(db: AsyncSession, template_id: str) -> WebsiteTempl
 
 
 async def create_template(db: AsyncSession, data: WebsiteTemplateCreate) -> WebsiteTemplate:
-    from src.proxy.providers.registry import get_registry
     dummy_template = type("DummyTemplate", (), {
         "name": data.name,
         "base_url": data.base_url,
@@ -52,7 +52,7 @@ async def create_template(db: AsyncSession, data: WebsiteTemplateCreate) -> Webs
 
 
 async def update_template(
-    db: AsyncSession, template_id: str, data: WebsiteTemplateUpdate
+        db: AsyncSession, template_id: str, data: WebsiteTemplateUpdate
 ) -> WebsiteTemplate:
     template = await get_template_by_id(db, template_id)
     update_fields = data.model_dump(exclude_unset=True)
@@ -100,7 +100,7 @@ async def create_endpoint(db: AsyncSession, data: ApiEndpointCreate) -> ApiEndpo
 
 
 async def update_endpoint(
-    db: AsyncSession, endpoint_id: str, data: ApiEndpointUpdate
+        db: AsyncSession, endpoint_id: str, data: ApiEndpointUpdate
 ) -> ApiEndpoint:
     result = await db.execute(select(ApiEndpoint).where(ApiEndpoint.id == endpoint_id))
     endpoint = result.scalar_one_or_none()

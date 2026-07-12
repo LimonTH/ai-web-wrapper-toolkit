@@ -1,7 +1,8 @@
 from datetime import datetime
-from pydantic import BaseModel, Field, field_validator
 from typing import Any
 from urllib.parse import urlparse
+
+from pydantic import BaseModel, Field, field_validator
 
 
 def _validate_url(v: str | None) -> str | None:
@@ -80,6 +81,7 @@ class WebsiteTemplateRead(BaseModel):
 
     model_config = {"from_attributes": True}
 
+
 class ApiEndpointCreate(BaseModel):
     template_id: str | None = None  # can be passed from URL
     functional_block: str = Field(
@@ -130,6 +132,7 @@ class ApiEndpointRead(BaseModel):
 
     model_config = {"from_attributes": True}
 
+
 class CookieProfileCreate(BaseModel):
     template_id: str
     name: str = Field(..., min_length=1)
@@ -163,6 +166,7 @@ class CookieProfileRead(BaseModel):
 
     model_config = {"from_attributes": True}
 
+
 class VirtualApiKeyCreate(BaseModel):
     template_id: str
     cookie_profile_id: str | None = None
@@ -186,6 +190,7 @@ class VirtualApiKeyRead(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
 
 class ActionRecordingCreate(BaseModel):
     template_id: str

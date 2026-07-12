@@ -4,9 +4,9 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.cookie_collector.browser import login_and_get_cookies, inject_cookies_and_open
 from src.core.models import CookieProfile, WebsiteTemplate
 from src.core.schemas import CookieProfileCreate, CookieProfileUpdate
-from src.cookie_collector.browser import login_and_get_cookies, inject_cookies_and_open
 
 
 async def get_all_profiles(db: AsyncSession) -> list[CookieProfile]:
@@ -80,7 +80,7 @@ async def create_profile(db: AsyncSession, data: CookieProfileCreate) -> CookieP
 
 
 async def update_profile(
-    db: AsyncSession, profile_id: str, data: CookieProfileUpdate
+        db: AsyncSession, profile_id: str, data: CookieProfileUpdate
 ) -> CookieProfile:
     profile = await get_profile_by_id(db, profile_id)
 
@@ -99,10 +99,10 @@ async def delete_profile(db: AsyncSession, profile_id: str) -> None:
 
 
 async def run_browser_login(
-    db: AsyncSession,
-    profile_id: str,
-    headless: bool = False,
-    auto_close: bool = True,
+        db: AsyncSession,
+        profile_id: str,
+        headless: bool = False,
+        auto_close: bool = True,
 ) -> CookieProfile:
     """Opens a browser for manual login, collects cookies and saves to the profile."""
     profile = await get_profile_by_id(db, profile_id)
@@ -115,8 +115,6 @@ async def run_browser_login(
         raise HTTPException(status_code=404, detail="Template not found")
 
     login_url = template.base_url
-
-    from datetime import datetime, timezone
 
     result = await login_and_get_cookies(
         template_name=template.name,
@@ -140,9 +138,9 @@ async def run_browser_login(
 
 
 async def test_cookies(
-    db: AsyncSession,
-    profile_id: str,
-    headless: bool = True,
+        db: AsyncSession,
+        profile_id: str,
+        headless: bool = True,
 ) -> dict:
     """Opens a browser with injected cookies for testing."""
     profile = await get_profile_by_id(db, profile_id)

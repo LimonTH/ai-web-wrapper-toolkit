@@ -13,40 +13,45 @@
 <div class="table-wrap">
     <table>
         <thead>
-            <tr>
-                <th>Template</th>
-                <th>URL</th>
-                <th>Endpoints</th>
-                <th>Capabilities</th>
-                <th></th>
-            </tr>
+        <tr>
+            <th>Template</th>
+            <th>URL</th>
+            <th>Endpoints</th>
+            <th>Capabilities</th>
+            <th></th>
+        </tr>
         </thead>
         <tbody>
-            {% for t in templates %}
-            <tr>
-                <td><strong>{{ t.name }}</strong></td>
-                <td class="mono text-xs text-secondary" style="word-break:break-all;">{{ t.base_url[:50] }}</td>
-                <td class="text-xs text-secondary">{{ t.endpoints_count }} endpoints</td>
-                <td>
-                    {% for cap in t.capabilities %}
-                    <span class="tag tag-purple">{{ cap }}</span>
-                    {% endfor %}
-                </td>
-                <td>
-                    <a href="/ui/api/{{ t.id }}" class="btn btn-sm">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                        View
-                    </a>
-                </td>
-            </tr>
-            {% endfor %}
+        {% for t in templates %}
+        <tr>
+            <td><strong>{{ t.name }}</strong></td>
+            <td class="mono text-xs text-secondary" style="word-break:break-all;">{{ t.base_url[:50] }}</td>
+            <td class="text-xs text-secondary">{{ t.endpoints_count }} endpoints</td>
+            <td>
+                {% for cap in t.capabilities %}
+                <span class="tag tag-purple">{{ cap }}</span>
+                {% endfor %}
+            </td>
+            <td>
+                <a href="/ui/api/{{ t.id }}" class="btn btn-sm">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                    View
+                </a>
+            </td>
+        </tr>
+        {% endfor %}
         </tbody>
     </table>
 </div>
 
 <div class="section-card">
     <h3>Record API Traffic</h3>
-    <p class="text-sm">Select a template and optionally a cookie profile (for authenticated sessions). Browser opens — navigate the site, perform actions, close browser when done.</p>
+    <p class="text-sm">Select a template and optionally a cookie profile (for authenticated sessions). Browser opens —
+        navigate the site, perform actions, close browser when done.</p>
 
     <form id="record-form" style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-top:12px;">
         <div class="form-group" style="margin-bottom:0;flex:1;min-width:200px;">
@@ -67,28 +72,37 @@
             </select>
         </div>
         <button type="submit" class="btn btn-danger" style="height:36px;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="6"/></svg>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <circle cx="12" cy="12" r="6"/>
+            </svg>
             Start Recording
         </button>
     </form>
 </div>
 
 <script>
-document.getElementById('record-form').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    const data = Object.fromEntries(new FormData(e.target));
-    let url = '/api/endpoints/' + data.template_id + '/record';
-    if (data.cookie_profile_id) url += '?cookie_profile_id=' + data.cookie_profile_id;
-    document.getElementById('toast').innerHTML = '<div class="toast toast-success fade-in">Browser opening…</div>';
-    fetch(url, {method: 'POST'});
-    setTimeout(() => location.reload(), 8000);
-});
+    document.getElementById('record-form').addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const data = Object.fromEntries(new FormData(e.target));
+        let url = '/api/endpoints/' + data.template_id + '/record';
+        if (data.cookie_profile_id) url += '?cookie_profile_id=' + data.cookie_profile_id;
+        document.getElementById('toast').innerHTML = '<div class="toast toast-success fade-in">Browser opening…</div>';
+        fetch(url, {method: 'POST'});
+        setTimeout(() => location.reload(), 8000);
+    });
 </script>
 
 {% else %}
 <div class="empty-state">
     <div class="empty-icon">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+             stroke-linecap="round">
+            <polyline points="16 3 21 3 21 8"/>
+            <line x1="4" y1="20" x2="21" y2="3"/>
+            <polyline points="21 16 21 21 16 21"/>
+            <line x1="15" y1="15" x2="21" y2="21"/>
+            <line x1="4" y1="4" x2="9" y2="9"/>
+        </svg>
     </div>
     <p>No templates yet.</p>
     <p class="text-xs text-secondary">Create a template first, then inspect its API traffic.</p>

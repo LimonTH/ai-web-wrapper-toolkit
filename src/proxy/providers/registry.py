@@ -1,7 +1,3 @@
-"""
-Provider adapter registry with recursive auto-discovery.
-Adapters are automatically discovered in providers/ and subfolders.
-"""
 import importlib
 import inspect
 import pkgutil
@@ -11,6 +7,11 @@ from typing import Type
 from src.core.models import WebsiteTemplate
 from src.proxy.providers.base import BaseProviderAdapter
 from src.proxy.providers.generic import GenericAdapter
+
+"""
+Provider adapter registry with recursive auto-discovery.
+Adapters are automatically discovered in providers/ and subfolders.
+"""
 
 
 class ProviderRegistry:
@@ -39,9 +40,9 @@ class ProviderRegistry:
                 mod = importlib.import_module(f"{prefix}.{modname}")
                 for _name, obj in inspect.getmembers(mod, inspect.isclass):
                     if (
-                        obj is not BaseProviderAdapter
-                        and issubclass(obj, BaseProviderAdapter)
-                        and obj is not GenericAdapter
+                            obj is not BaseProviderAdapter
+                            and issubclass(obj, BaseProviderAdapter)
+                            and obj is not GenericAdapter
                     ):
                         pid = getattr(obj, "provider_id", None)
                         if pid and pid not in self._adapters:

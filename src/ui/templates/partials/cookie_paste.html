@@ -2,7 +2,8 @@
     <div class="modal">
         <h2>Paste Cookies</h2>
         <p class="text-sm text-secondary" style="margin-bottom:14px;">
-            Export cookies from your real browser using <strong>EditThisCookie</strong> or <strong>Cookie-Editor</strong> extension, then paste the JSON array here.
+            Export cookies from your real browser using <strong>EditThisCookie</strong> or
+            <strong>Cookie-Editor</strong> extension, then paste the JSON array here.
         </p>
         <form id="paste-form">
             <div class="form-group">
@@ -24,7 +25,9 @@
             </div>
             <div class="form-group">
                 <label>Cookies JSON</label>
-                <textarea name="cookies_json" rows="8" placeholder='[{"name":"session","value":"xxx","domain":".example.com","path":"/","httpOnly":true},...]' required></textarea>
+                <textarea name="cookies_json" rows="8"
+                          placeholder='[{"name":"session","value":"xxx","domain":".example.com","path":"/","httpOnly":true},...]'
+                          required></textarea>
             </div>
             <div class="modal-actions">
                 <button type="button" class="btn" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
@@ -35,18 +38,32 @@
 </div>
 
 <script>
-document.getElementById('paste-form').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    const data = Object.fromEntries(new FormData(e.target));
-    let cookies;
-    try { cookies = JSON.parse(data.cookies_json); }
-    catch { document.getElementById('toast').innerHTML = '<div class="toast toast-error fade-in">Invalid JSON!</div>'; return; }
-    const resp = await fetch('/api/cookies', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({name: data.name, description: data.description, template_id: data.provider_id, cookies: cookies})
+    document.getElementById('paste-form').addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const data = Object.fromEntries(new FormData(e.target));
+        let cookies;
+        try {
+            cookies = JSON.parse(data.cookies_json);
+        } catch {
+            document.getElementById('toast').innerHTML = '<div class="toast toast-error fade-in">Invalid JSON!</div>';
+            return;
+        }
+        const resp = await fetch('/api/cookies', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                name: data.name,
+                description: data.description,
+                template_id: data.provider_id,
+                cookies: cookies
+            })
+        });
+        if (resp.ok) {
+            document.querySelector('.modal-overlay').remove();
+            location.reload();
+        } else {
+            const err = await resp.json();
+            document.getElementById('toast').innerHTML = '<div class="toast toast-error fade-in">' + JSON.stringify(err.detail) + '</div>';
+        }
     });
-    if (resp.ok) { document.querySelector('.modal-overlay').remove(); location.reload(); }
-    else { const err = await resp.json(); document.getElementById('toast').innerHTML = '<div class="toast toast-error fade-in">'+JSON.stringify(err.detail)+'</div>'; }
-});
 </script>

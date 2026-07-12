@@ -1,13 +1,13 @@
+from sqlalchemy import select
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.core.models import AppSetting
+
 """
 Runtime settings service — hot-reloadable settings in the database.
 Can be changed via UI without server restart.
 """
-from typing import Any
-
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from src.core.models import AppSetting
 
 _DEFAULTS: dict[str, str] = {
     "proxy_url": "",
@@ -60,7 +60,6 @@ class SettingsService:
 
     async def set(self, key: str, value: str, db: AsyncSession) -> None:
         """Save setting to the database + update cache (upsert)."""
-        from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
         stmt = sqlite_insert(AppSetting).values(key=key, value=value)
         stmt = stmt.on_conflict_do_update(

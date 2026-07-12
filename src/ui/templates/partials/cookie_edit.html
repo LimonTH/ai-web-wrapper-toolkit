@@ -11,7 +11,7 @@
                 <label>Template</label>
                 <select name="template_id" required>
                     {% for t in templates %}
-                    <option value="{{ t.id }}" {% if t.id == p.template_id %}selected{% endif %}>{{ t.name }}</option>
+                    <option value="{{ t.id }}" {% if t.id== p.template_id %}selected{% endif %}>{{ t.name }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -20,7 +20,8 @@
                 <textarea name="description" rows="2">{{ p.description or '' }}</textarea>
             </div>
             <div class="modal-actions">
-                <button type="button" class="btn btn-ghost" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+                <button type="button" class="btn btn-ghost" onclick="this.closest('.modal-overlay').remove()">Cancel
+                </button>
                 <button type="submit" class="btn btn-primary">Save</button>
             </div>
         </form>
@@ -28,19 +29,22 @@
 </div>
 
 <script>
-document.getElementById('cookie-edit-form').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    const data = Object.fromEntries(new FormData(e.target));
-    const id = data.id; delete data.id;
-    const resp = await fetch('/api/cookies/' + id, {
-        method: 'PUT',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(data)
+    document.getElementById('cookie-edit-form').addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const data = Object.fromEntries(new FormData(e.target));
+        const id = data.id;
+        delete data.id;
+        const resp = await fetch('/api/cookies/' + id, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        if (resp.ok) {
+            document.querySelector('.modal-overlay').remove();
+            location.reload();
+        } else {
+            const err = await resp.json();
+            document.getElementById('toast').innerHTML = '<div class="toast toast-error fade-in">' + JSON.stringify(err.detail) + '</div>';
+        }
     });
-    if (resp.ok) { document.querySelector('.modal-overlay').remove(); location.reload(); }
-    else {
-        const err = await resp.json();
-        document.getElementById('toast').innerHTML = '<div class="toast toast-error fade-in">' + JSON.stringify(err.detail) + '</div>';
-    }
-});
 </script>

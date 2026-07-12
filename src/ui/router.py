@@ -1,18 +1,21 @@
-"""
-UI Router — server-side Jinja2 rendering + HTMX.
-"""
 import json
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from jinja2 import Environment, FileSystemLoader
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from pathlib import Path
 
-from src.core.config import settings
 from src.core.database import get_db
 from src.core.models import WebsiteTemplate, CookieProfile, VirtualApiKey, ActionRecording, ApiEndpoint
+from src.core.settings_service import get_settings_service
+from src.proxy.providers.registry import get_registry
+
+"""
+UI Router — server-side Jinja2 rendering + HTMX.
+"""
 
 router = APIRouter()
 
@@ -32,7 +35,6 @@ def _toast(message: str, type_: str = "success") -> dict[str, str]:
 
 @router.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request, db: AsyncSession = Depends(get_db)):
-    from src.proxy.providers.registry import get_registry
     providers = get_registry().list_providers()
     p_count = len(providers)
     c_count = len((await db.execute(select(CookieProfile))).scalars().all())
@@ -47,7 +49,6 @@ async def dashboard(request: Request, db: AsyncSession = Depends(get_db)):
 
 @router.get("/templates", response_class=HTMLResponse)
 async def providers_page(request: Request):
-    from src.proxy.providers.registry import get_registry
     providers = get_registry().list_providers()
     return _render(
         "templates/list.html",
@@ -72,7 +73,6 @@ async def cookies_page(request: Request, db: AsyncSession = Depends(get_db)):
 
 @router.get("/cookies/new", response_class=HTMLResponse)
 async def new_cookie_form(request: Request):
-    from src.proxy.providers.registry import get_registry
     providers = get_registry().list_providers()
     return _render(
         "partials/cookie_form.html",
@@ -83,7 +83,6 @@ async def new_cookie_form(request: Request):
 
 @router.get("/cookies/paste", response_class=HTMLResponse)
 async def paste_cookies_form(request: Request):
-    from src.proxy.providers.registry import get_registry
     providers = get_registry().list_providers()
     return _render(
         "partials/cookie_paste.html",
@@ -109,7 +108,6 @@ async def edit_cookie_form(profile_id: str, request: Request, db: AsyncSession =
 
 @router.get("/recorder", response_class=HTMLResponse)
 async def recorder_page(request: Request, db: AsyncSession = Depends(get_db)):
-    from src.proxy.providers.registry import get_registry
     providers = get_registry().list_providers()
 
     c_result = await db.execute(select(CookieProfile).order_by(CookieProfile.name))
@@ -147,7 +145,6 @@ async def keys_page(request: Request, db: AsyncSession = Depends(get_db)):
 
 @router.get("/keys/new", response_class=HTMLResponse)
 async def new_key_form(request: Request, db: AsyncSession = Depends(get_db)):
-    from src.proxy.providers.registry import get_registry
     providers = get_registry().list_providers()
     c_result = await db.execute(select(CookieProfile).order_by(CookieProfile.name))
     return _render(
@@ -160,9 +157,9 @@ async def new_key_form(request: Request, db: AsyncSession = Depends(get_db)):
 
 @router.get("/cookies/by-template", response_class=HTMLResponse)
 async def cookie_profiles_by_template(
-    request: Request,
-    db: AsyncSession = Depends(get_db),
-    template_id: str = Query(""),
+        request: Request,
+        db: AsyncSession = Depends(get_db),
+        template_id: str = Query(""),
 ):
     """HTML partial: list of cookie profiles for a specific template."""
     if not template_id:
@@ -219,9 +216,9 @@ async def api_inspector_page(request: Request, db: AsyncSession = Depends(get_db
 
 @router.get("/api/{template_id}", response_class=HTMLResponse)
 async def api_template_detail(
-    template_id: str,
-    request: Request,
-    db: AsyncSession = Depends(get_db),
+        template_id: str,
+        request: Request,
+        db: AsyncSession = Depends(get_db),
 ):
     """API Inspector detail: view endpoints for a specific template."""
     t_result = await db.execute(
@@ -265,7 +262,6 @@ async def settings_page(request: Request, db: AsyncSession = Depends(get_db)):
 @router.post("/settings/save")
 async def save_settings(request: Request, db: AsyncSession = Depends(get_db)):
     """Saves settings to DB — toast on success/error via HX-Trigger."""
-    from src.core.settings_service import get_settings_service
 
     try:
         body = await request.json()

@@ -4,7 +4,8 @@
         <form id="template-edit-form">
             <input type="hidden" name="id" value="{{ t.id }}">
             <div class="form-group"><label>Name</label><input name="name" value="{{ t.name }}" required></div>
-            <div class="form-group"><label>Base URL</label><input name="base_url" value="{{ t.base_url }}" required></div>
+            <div class="form-group"><label>Base URL</label><input name="base_url" value="{{ t.base_url }}" required>
+            </div>
             <div class="form-group">
                 <label>Auth Type</label>
                 <select name="auth_type">
@@ -13,7 +14,8 @@
                     <option value="none" {% if t.auth_type=='none' %}selected{% endif %}>None</option>
                 </select>
             </div>
-            <div class="form-group"><label>Description</label><textarea name="description" rows="2">{{ t.description or '' }}</textarea></div>
+            <div class="form-group"><label>Description</label><textarea name="description" rows="2">{{ t.description or '' }}</textarea>
+            </div>
             {% if t.capabilities %}
             <div class="form-group">
                 <label>Capabilities</label>
@@ -33,13 +35,23 @@
     </div>
 </div>
 <script>
-document.getElementById('template-edit-form').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    const form = e.target;
-    const data = Object.fromEntries(new FormData(form));
-    const id = data.id; delete data.id;
-    const resp = await fetch('/api/templates/'+id, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
-    if (resp.ok) { document.querySelector('.modal-overlay').remove(); location.reload(); }
-    else { const err = await resp.json(); document.getElementById('toast').innerHTML = '<div class="toast toast-error fade-in">'+JSON.stringify(err.detail)+'</div>'; }
-});
+    document.getElementById('template-edit-form').addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const form = e.target;
+        const data = Object.fromEntries(new FormData(form));
+        const id = data.id;
+        delete data.id;
+        const resp = await fetch('/api/templates/' + id, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        if (resp.ok) {
+            document.querySelector('.modal-overlay').remove();
+            location.reload();
+        } else {
+            const err = await resp.json();
+            document.getElementById('toast').innerHTML = '<div class="toast toast-error fade-in">' + JSON.stringify(err.detail) + '</div>';
+        }
+    });
 </script>

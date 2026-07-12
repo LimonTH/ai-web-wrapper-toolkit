@@ -1,12 +1,13 @@
-"""
-Generic provider adapter — universal adapter (fallback).
-Used by default when no specific adapter is found.
-"""
 import json
 from typing import Any
 
 from src.core.models import WebsiteTemplate, ApiEndpoint
 from src.proxy.providers.base import BaseProviderAdapter
+
+"""
+Generic provider adapter — universal adapter (fallback).
+Used by default when no specific adapter is found.
+"""
 
 
 class GenericAdapter(BaseProviderAdapter):
@@ -19,10 +20,10 @@ class GenericAdapter(BaseProviderAdapter):
     _MAX_CONTENT_CHARS = 200_000
 
     def get_endpoint(
-        self,
-        template: WebsiteTemplate,
-        block: str = "chat",
-        method: str = "POST",
+            self,
+            template: WebsiteTemplate,
+            block: str = "chat",
+            method: str = "POST",
     ) -> ApiEndpoint | None:
         """Scoring-based endpoint selection."""
         candidates = list(template.endpoints)
@@ -46,7 +47,7 @@ class GenericAdapter(BaseProviderAdapter):
         return candidates[0]
 
     def _score_endpoint(
-        self, ep: ApiEndpoint, target_block: str, preferred_method: str = "POST"
+            self, ep: ApiEndpoint, target_block: str, preferred_method: str = "POST"
     ) -> int:
         if ep.functional_block != target_block:
             return -1
@@ -67,10 +68,10 @@ class GenericAdapter(BaseProviderAdapter):
         return score
 
     def build_payload(
-        self,
-        endpoint: ApiEndpoint,
-        body: dict[str, Any],
-        block: str = "chat",
+            self,
+            endpoint: ApiEndpoint,
+            body: dict[str, Any],
+            block: str = "chat",
     ) -> dict[str, Any]:
         payload: dict[str, Any] = {}
         if endpoint.body_template:
@@ -100,9 +101,9 @@ class GenericAdapter(BaseProviderAdapter):
         return payload
 
     def extract_content(
-        self,
-        data: dict[str, Any] | str | list,
-        block: str = "chat",
+            self,
+            data: dict[str, Any] | str | list,
+            block: str = "chat",
     ) -> str:
         result = self._extract_recursive(data, block, depth=0)
         if result and len(result) > self._MAX_CONTENT_CHARS:
@@ -110,7 +111,7 @@ class GenericAdapter(BaseProviderAdapter):
         return result or ""
 
     def _extract_recursive(
-        self, data: Any, block: str = "chat", depth: int = 0
+            self, data: Any, block: str = "chat", depth: int = 0
     ) -> str | None:
         if depth > 3:
             return None
@@ -161,9 +162,9 @@ class GenericAdapter(BaseProviderAdapter):
         return None
 
     def extract_stream_chunk(
-        self,
-        chunk_data: dict[str, Any],
-        block: str = "chat",
+            self,
+            chunk_data: dict[str, Any],
+            block: str = "chat",
     ) -> str | None:
         if block == "chat":
             choices = chunk_data.get("choices", [])

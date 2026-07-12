@@ -1,13 +1,19 @@
-import uvicorn
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
+import uvicorn
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
+
 from src.__version__ import __version__
+from src.cookie_collector.router import router as cookie_router
 from src.core.config import settings
 from src.core.database import init_db
+from src.providers.router import router as template_router
+from src.proxy.router import router as openai_router
+from src.recorder.router import router as action_router
+from src.ui.router import router as ui_router
 
 
 @asynccontextmanager
@@ -22,6 +28,7 @@ async def lifespan(app: FastAPI):
         await svc.reload(db)
 
     yield
+
 
 app = FastAPI(
     title="AI Web Wrapper Toolkit",
@@ -40,7 +47,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 from fastapi import HTTPException
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -86,12 +92,12 @@ async def http_exception_handler(request, exc: HTTPException | StarletteHTTPExce
     return JSONResponse(status_code=exc.status_code, content={"detail": text})
 
 
-from starlette.responses import FileResponse
 from starlette.staticfiles import StaticFiles as StarletteStaticFiles
 
 
 class _NoCacheStaticFiles(StarletteStaticFiles):
     """Disables caching for static files in debug mode (dev)."""
+
     async def get_response(self, path: str, scope):
         resp = await super().get_response(path, scope)
         if settings.debug:
@@ -105,25 +111,16 @@ static_dir = Path(__file__).parent / "ui" / "static"
 if static_dir.exists():
     app.mount("/static", _NoCacheStaticFiles(directory=str(static_dir)), name="static")
 
-
-from src.providers.router import router as template_router
-from src.cookie_collector.router import router as cookie_router
-from src.recorder.router import router as action_router
-from src.proxy.router import router as openai_router
-
 app.include_router(template_router, prefix="/api/templates", tags=["Templates"])
 app.include_router(cookie_router, prefix="/api/cookies", tags=["Cookies"])
 app.include_router(action_router, prefix="/api/actions", tags=["Action Recording"])
 app.include_router(openai_router, prefix="", tags=["OpenAI API"])
 
-
-from src.ui.router import router as ui_router
 app.include_router(ui_router, prefix="/ui", tags=["UI"])
 
 
 @app.get("/")
 async def root():
-    from fastapi.responses import RedirectResponse
     return RedirectResponse(url="/ui/")
 
 

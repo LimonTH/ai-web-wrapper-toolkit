@@ -1,7 +1,3 @@
-"""
-Agent Transformer — OpenAI-compatible proxy with multimodal provider adapters.
-Accepts requests in OpenAI format and proxies them to the real web-wrapper API.
-"""
 import json
 import time
 import uuid
@@ -9,10 +5,16 @@ from typing import Any, AsyncGenerator
 
 import httpx
 from fastapi import HTTPException, status
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from src.core.models import WebsiteTemplate, CookieProfile
 from src.proxy.providers.registry import get_registry
 
+"""
+Agent Transformer — OpenAI-compatible proxy with multimodal provider adapters.
+Accepts requests in OpenAI format and proxies them to the real web-wrapper API.
+"""
 
 _ENDPOINT_BLOCK_MAP: dict[str, str] = {
     "/v1/chat/completions": "chat",
@@ -23,10 +25,10 @@ _ENDPOINT_BLOCK_MAP: dict[str, str] = {
 
 
 async def proxy_request(
-    template: WebsiteTemplate,
-    cookie_profile: CookieProfile | None,
-    body: dict[str, Any],
-    openai_path: str,
+        template: WebsiteTemplate,
+        cookie_profile: CookieProfile | None,
+        body: dict[str, Any],
+        openai_path: str,
 ) -> dict[str, Any] | AsyncGenerator[str, None]:
     """
     Proxies the request to the web-wrapper via the provider adapter.
@@ -78,9 +80,9 @@ async def proxy_request(
 
 
 async def _proxy_sync(
-    client: httpx.AsyncClient,
-    url: str, headers: dict[str, str], payload: dict[str, Any],
-    model: str, adapter, block: str = "chat",
+        client: httpx.AsyncClient,
+        url: str, headers: dict[str, str], payload: dict[str, Any],
+        model: str, adapter, block: str = "chat",
 ) -> dict[str, Any]:
     response = await client.post(url, headers=headers, json=payload)
 
@@ -106,8 +108,8 @@ async def _proxy_sync(
 
 
 async def _proxy_stream(
-    url: str, headers: dict[str, str], payload: dict[str, Any],
-    model: str, adapter, block: str = "chat",
+        url: str, headers: dict[str, str], payload: dict[str, Any],
+        model: str, adapter, block: str = "chat",
 ) -> AsyncGenerator[str, None]:
     async with httpx.AsyncClient(verify=True, timeout=httpx.Timeout(30.0, connect=10.0)) as client:
         async with client.stream("POST", url, headers=headers, json=payload) as response:
@@ -137,7 +139,7 @@ async def _proxy_stream(
 
 
 def _build_openai_response(
-    model: str, content: str, finish_reason: str = "stop",
+        model: str, content: str, finish_reason: str = "stop",
 ) -> dict[str, Any]:
     return {
         "id": f"chatcmpl-{uuid.uuid4().hex[:12]}",
@@ -154,7 +156,7 @@ def _build_openai_response(
 
 
 def _build_openai_image_response(
-    model: str, data: Any, adapter, block: str,
+        model: str, data: Any, adapter, block: str,
 ) -> dict[str, Any]:
     content = adapter.extract_content(data, block=block)
     return {
@@ -164,7 +166,7 @@ def _build_openai_image_response(
 
 
 def _build_openai_chunk(
-    model: str, content: str | None = None, finish_reason: str | None = None,
+        model: str, content: str | None = None, finish_reason: str | None = None,
 ) -> str:
     delta: dict[str, Any] = {}
     if content is not None:
@@ -202,8 +204,6 @@ async def get_available_models(template: WebsiteTemplate) -> list[dict[str, str]
 
 async def get_all_models(db) -> list[dict[str, str]]:
     """Models of all active templates."""
-    from sqlalchemy import select
-    from sqlalchemy.orm import selectinload
 
     result = await db.execute(
         select(WebsiteTemplate)

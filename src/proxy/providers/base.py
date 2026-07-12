@@ -1,11 +1,12 @@
-"""
-Base provider adapter — plugin interface for site-specific API adapters.
-Each site (ChatGPT, Claude, Gemini, etc.) has its own API format.
-"""
 from abc import ABC, abstractmethod
 from typing import Any
 
 from src.core.models import WebsiteTemplate, ApiEndpoint
+
+"""
+Base provider adapter — plugin interface for site-specific API adapters.
+Each site (ChatGPT, Claude, Gemini, etc.) has its own API format.
+"""
 
 
 class BaseProviderAdapter(ABC):
@@ -30,47 +31,47 @@ class BaseProviderAdapter(ABC):
 
     @abstractmethod
     def get_endpoint(
-        self,
-        template: WebsiteTemplate,
-        block: str,
-        method: str = "POST",
+            self,
+            template: WebsiteTemplate,
+            block: str,
+            method: str = "POST",
     ) -> ApiEndpoint | None:
         """Returns an endpoint for the specified functional_block."""
         ...
 
     @abstractmethod
     def build_payload(
-        self,
-        endpoint: ApiEndpoint,
-        body: dict[str, Any],
-        block: str = "chat",
+            self,
+            endpoint: ApiEndpoint,
+            body: dict[str, Any],
+            block: str = "chat",
     ) -> dict[str, Any]:
         """Converts OpenAI request format to the site's format."""
         ...
 
     @abstractmethod
     def extract_content(
-        self,
-        data: dict[str, Any] | str | list,
-        block: str = "chat",
+            self,
+            data: dict[str, Any] | str | list,
+            block: str = "chat",
     ) -> str:
         """Extracts text/content from the site's response."""
         ...
 
     @abstractmethod
     def extract_stream_chunk(
-        self,
-        chunk_data: dict[str, Any],
-        block: str = "chat",
+            self,
+            chunk_data: dict[str, Any],
+            block: str = "chat",
     ) -> str | None:
         """Extracts text from a single SSE streaming chunk."""
         ...
 
     def get_headers(
-        self,
-        template: WebsiteTemplate,
-        stream: bool = False,
-        block: str = "chat",
+            self,
+            template: WebsiteTemplate,
+            stream: bool = False,
+            block: str = "chat",
     ) -> dict[str, str]:
         headers: dict[str, str] = {
             "Content-Type": "application/json",

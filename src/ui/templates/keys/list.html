@@ -11,7 +11,11 @@
             hx-get="/ui/keys/new"
             hx-target="#modal"
             hx-swap="innerHTML">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+             stroke-linecap="round">
+            <line x1="12" y1="5" x2="12" y2="19"/>
+            <line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
         New Key
     </button>
 </div>
@@ -20,49 +24,58 @@
 <div class="table-wrap">
     <table>
         <thead>
-            <tr>
-                <th>Name</th>
-                <th>Key</th>
-                <th>Template</th>
-                <th>Status</th>
-                <th>Created</th>
-                <th></th>
-            </tr>
+        <tr>
+            <th>Name</th>
+            <th>Key</th>
+            <th>Template</th>
+            <th>Status</th>
+            <th>Created</th>
+            <th></th>
+        </tr>
         </thead>
         <tbody>
-            {% for k in keys %}
-            <tr>
-                <td><strong>{{ k.name }}</strong></td>
-                <td>
-                    <code class="mono text-xs" style="color:var(--accent);">{{ k.key_value[:16] }}…{{ k.key_value[-6:] }}</code>
-                </td>
-                <td><span class="tag">{{ k.template_id[:12] }}…</span></td>
-                <td>
-                    {% if k.is_active %}
-                    <span class="dot dot-active"></span><span class="tag tag-success">active</span>
-                    {% else %}
-                    <span class="dot dot-danger"></span><span class="tag tag-danger">revoked</span>
-                    {% endif %}
-                </td>
-                <td class="text-xs text-secondary" style="white-space:nowrap;">{{ k.created_at.strftime('%Y-%m-%d') }}</td>
-                <td>
-                    <div class="btn-group">
-                        <button class="btn btn-sm btn-ghost" onclick="copyKey('{{ k.key_value }}')" title="Copy key">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                        </button>
-                        <button class="btn btn-sm btn-danger"
-                                hx-delete="/api/templates/keys/{{ k.id }}"
-                                hx-target="#toast"
-                                hx-swap="innerHTML"
-                                hx-confirm="Revoke this key?"
-                                hx-on::after-request="setTimeout(()=>location.reload(),2000)">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
-                            Revoke
-                        </button>
-                    </div>
-                </td>
-            </tr>
-            {% endfor %}
+        {% for k in keys %}
+        <tr>
+            <td><strong>{{ k.name }}</strong></td>
+            <td>
+                <code class="mono text-xs" style="color:var(--accent);">{{ k.key_value[:16] }}…{{ k.key_value[-6:]
+                    }}</code>
+            </td>
+            <td><span class="tag">{{ k.template_id[:12] }}…</span></td>
+            <td>
+                {% if k.is_active %}
+                <span class="dot dot-active"></span><span class="tag tag-success">active</span>
+                {% else %}
+                <span class="dot dot-danger"></span><span class="tag tag-danger">revoked</span>
+                {% endif %}
+            </td>
+            <td class="text-xs text-secondary" style="white-space:nowrap;">{{ k.created_at.strftime('%Y-%m-%d') }}</td>
+            <td>
+                <div class="btn-group">
+                    <button class="btn btn-sm btn-ghost" onclick="copyKey('{{ k.key_value }}')" title="Copy key">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                             stroke-width="2" stroke-linecap="round">
+                            <rect x="9" y="9" width="13" height="13" rx="2"/>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                        </svg>
+                    </button>
+                    <button class="btn btn-sm btn-danger"
+                            hx-delete="/api/templates/keys/{{ k.id }}"
+                            hx-target="#toast"
+                            hx-swap="innerHTML"
+                            hx-confirm="Revoke this key?"
+                            hx-on::after-request="setTimeout(()=>location.reload(),2000)">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                             stroke-width="2" stroke-linecap="round">
+                            <polyline points="3 6 5 6 21 6"/>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
+                        </svg>
+                        Revoke
+                    </button>
+                </div>
+            </td>
+        </tr>
+        {% endfor %}
         </tbody>
     </table>
 </div>
@@ -72,27 +85,34 @@
     <p class="text-sm">Configure your OpenAI-compatible client:</p>
     <pre>OPENAI_API_KEY={{ keys[0].key_value[:24] }}…
 OPENAI_BASE_URL=http://localhost:8000/v1</pre>
-    <p class="text-xs text-secondary" style="margin-top:8px;">The proxy automatically routes requests through the correct provider adapter based on the API key.</p>
+    <p class="text-xs text-secondary" style="margin-top:8px;">The proxy automatically routes requests through the
+        correct provider adapter based on the API key.</p>
 </div>
 
 {% else %}
 <div class="empty-state">
     <div class="empty-icon">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.78 7.78 5.5 5.5 0 0 1 7.78-7.78zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3"/></svg>
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+             stroke-linecap="round">
+            <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.78 7.78 5.5 5.5 0 0 1 7.78-7.78zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3"/>
+        </svg>
     </div>
     <p>No API keys generated.</p>
-    <p class="text-xs text-secondary" style="margin-top:4px;">Create a template and cookie profile first, then generate a key.</p>
+    <p class="text-xs text-secondary" style="margin-top:4px;">Create a template and cookie profile first, then generate
+        a key.</p>
 </div>
 {% endif %}
 
 <div id="modal"></div>
 
 <script>
-function copyKey(key) {
-    navigator.clipboard.writeText(key).then(function() {
-        document.getElementById('toast').innerHTML = '<div class="toast toast-success fade-in">Key copied</div>';
-        setTimeout(function() { document.getElementById('toast').innerHTML = ''; }, 2000);
-    });
-}
+    function copyKey(key) {
+        navigator.clipboard.writeText(key).then(function () {
+            document.getElementById('toast').innerHTML = '<div class="toast toast-success fade-in">Key copied</div>';
+            setTimeout(function () {
+                document.getElementById('toast').innerHTML = '';
+            }, 2000);
+        });
+    }
 </script>
 {% endblock %}

@@ -8,7 +8,7 @@ from src.providers.generator import decode_virtual_key
 
 
 async def resolve_key(
-    db: AsyncSession, key_value: str
+        db: AsyncSession, key_value: str
 ) -> tuple[WebsiteTemplate, CookieProfile | None, VirtualApiKey]:
     """Finds Template + CookieProfile by key value (wsk_live_xxx)."""
     v_result = await db.execute(
@@ -51,7 +51,7 @@ async def resolve_key(
 
 
 async def resolve_key_for_provider(
-    db: AsyncSession, key_value: str, provider: str
+        db: AsyncSession, key_value: str, provider: str
 ) -> tuple[WebsiteTemplate, CookieProfile | None, VirtualApiKey]:
     """Like resolve_key, but checks that the key's template matches the provider from URL."""
     template, cookie_profile, virtual_key = await resolve_key(db, key_value)

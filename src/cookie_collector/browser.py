@@ -1,10 +1,13 @@
-"""
-Playwright browser automation with full stealth anti-detection for Google OAuth.
-"""
 import os
 from typing import Any
 
+from playwright.async_api import async_playwright
+
 from src.core.settings_service import get_settings_service
+
+"""
+Playwright browser automation with full stealth anti-detection for Google OAuth.
+"""
 
 _REAL_UA = (
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
@@ -165,10 +168,10 @@ async def _safe_close_browser(browser, context=None) -> None:
 
 
 async def login_and_get_cookies(
-    template_name: str,
-    login_url: str | None = None,
-    headless: bool = False,
-    auto_close: bool = True,
+        template_name: str,
+        login_url: str | None = None,
+        headless: bool = False,
+        auto_close: bool = True,
 ) -> dict[str, Any]:
     """Opens browser, auto-detects login via Python-side text polling."""
     import asyncio
@@ -257,17 +260,16 @@ async def login_and_get_cookies(
 
 
 async def inject_cookies_and_open(
-    url: str,
-    cookies: list[dict[str, Any]],
-    storage_state: dict[str, Any] | None = None,
-    headless: bool = True,
+        url: str,
+        cookies: list[dict[str, Any]],
+        storage_state: dict[str, Any] | None = None,
+        headless: bool = True,
 ) -> None:
     """Opens a site with injected cookies for testing."""
     _svc = get_settings_service()
     browser_name = _svc.get_cached("playwright_browser")
     proxy_config = _get_context_proxy()
     _setup_playwright_proxy_env()
-    from playwright.async_api import async_playwright
 
     p = await async_playwright().start()
     browser = None

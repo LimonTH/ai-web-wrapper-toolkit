@@ -1,16 +1,17 @@
-"""
-Virtual API Key Generator.
-Generates keys in the format wsk_live_xxxxxxxxxxxxxxxxxxxx
-and encodes template data + cookie profile into JWT.
-"""
-import uuid
 import secrets
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from jose import jwt, JWTError
 
 from src.core.config import settings
+
+"""
+Virtual API Key Generator.
+Generates keys in the format wsk_live_xxxxxxxxxxxxxxxxxxxx
+and encodes template data + cookie profile into JWT.
+"""
 
 
 def _generate_key_value(prefix: str = "wsk") -> str:
@@ -20,13 +21,13 @@ def _generate_key_value(prefix: str = "wsk") -> str:
 
 
 def _build_jwt_payload(
-    key_id: str,
-    template_id: str,
-    template_name: str,
-    capabilities: list[str],
-    cookie_profile_id: str | None = None,
-    config_overrides: dict | None = None,
-    expires_at: datetime | None = None,
+        key_id: str,
+        template_id: str,
+        template_name: str,
+        capabilities: list[str],
+        cookie_profile_id: str | None = None,
+        config_overrides: dict | None = None,
+        expires_at: datetime | None = None,
 ) -> dict[str, Any]:
     now = datetime.now(timezone.utc)
     payload: dict[str, Any] = {
@@ -53,13 +54,13 @@ def _build_jwt_payload(
 
 
 def generate_virtual_key(
-    template_id: str,
-    template_name: str,
-    capabilities: list[str],
-    cookie_profile_id: str | None = None,
-    config_overrides: dict | None = None,
-    expires_at: datetime | None = None,
-    key_prefix: str = "wsk",
+        template_id: str,
+        template_name: str,
+        capabilities: list[str],
+        cookie_profile_id: str | None = None,
+        config_overrides: dict | None = None,
+        expires_at: datetime | None = None,
+        key_prefix: str = "wsk",
 ) -> dict[str, str]:
     """
     Generates a virtual API key.

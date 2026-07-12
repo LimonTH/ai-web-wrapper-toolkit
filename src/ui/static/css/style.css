@@ -1,10 +1,3 @@
-/*
- * Web Wrapper Toolkit — Clean Professional Theme
- *
- * Светлая минималистичная тема с акцентом на читаемость.
- * Никакого AI-глассморфизма, никакой киберпанк-чернухи.
- * Чисто, плотно, инструментально.
- */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 :root {
@@ -43,13 +36,20 @@
 
     --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-    --shadow-sm: 0 1px 2px rgba(0,0,0,.04);
-    --shadow: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, .04);
+    --shadow: 0 1px 3px rgba(0, 0, 0, .06), 0 1px 2px rgba(0, 0, 0, .04);
 }
 
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
 
-html { font-size: 14px; -webkit-font-smoothing: antialiased; }
+html {
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+}
 
 body {
     font-family: var(--font);
@@ -142,7 +142,9 @@ body {
 }
 
 .sidebar nav a.active .nav-icon,
-.sidebar nav a:hover .nav-icon { opacity: 1; }
+.sidebar nav a:hover .nav-icon {
+    opacity: 1;
+}
 
 .sidebar nav a .nav-icon svg {
     width: 16px;
@@ -190,8 +192,13 @@ h2 {
     border-bottom: 1px solid var(--border);
 }
 
-.toolbar h1 { margin-bottom: 1px; }
-.toolbar h2 { margin-bottom: 0; }
+.toolbar h1 {
+    margin-bottom: 1px;
+}
+
+.toolbar h2 {
+    margin-bottom: 0;
+}
 
 /* ============================================================
    Stat Cards
@@ -231,9 +238,17 @@ h2 {
     letter-spacing: .4px;
 }
 
-.card-cardinal .value { color: var(--coral); }
-.card-amber .value { color: var(--amber); }
-.card-purple .value { color: var(--purple); }
+.card-cardinal .value {
+    color: var(--coral);
+}
+
+.card-amber .value {
+    color: var(--amber);
+}
+
+.card-purple .value {
+    color: var(--purple);
+}
 
 /* ============================================================
    Section cards
@@ -313,8 +328,13 @@ td {
     vertical-align: middle;
 }
 
-tr:last-child td { border-bottom: none; }
-tr:hover td { background: var(--bg-hover); }
+tr:last-child td {
+    border-bottom: none;
+}
+
+tr:hover td {
+    background: var(--bg-hover);
+}
 
 /* ============================================================
    Buttons
@@ -446,7 +466,9 @@ tr:hover td { background: var(--bg-hover); }
     gap: 14px;
 }
 
-.form-row .form-group { flex: 1; }
+.form-row .form-group {
+    flex: 1;
+}
 
 .form-help {
     font-size: 12px;
@@ -471,11 +493,35 @@ tr:hover td { background: var(--bg-hover); }
     line-height: 1.6;
 }
 
-.tag-success { background: var(--green-light); color: var(--green); border-color: transparent; }
-.tag-warning { background: var(--amber-light); color: var(--amber); border-color: transparent; }
-.tag-danger  { background: var(--coral-light);  color: var(--coral); border-color: transparent; }
-.tag-purple  { background: var(--purple-light); color: var(--purple); border-color: transparent; }
-.tag-cyan    { background: var(--cyan-light);   color: var(--cyan);  border-color: transparent; }
+.tag-success {
+    background: var(--green-light);
+    color: var(--green);
+    border-color: transparent;
+}
+
+.tag-warning {
+    background: var(--amber-light);
+    color: var(--amber);
+    border-color: transparent;
+}
+
+.tag-danger {
+    background: var(--coral-light);
+    color: var(--coral);
+    border-color: transparent;
+}
+
+.tag-purple {
+    background: var(--purple-light);
+    color: var(--purple);
+    border-color: transparent;
+}
+
+.tag-cyan {
+    background: var(--cyan-light);
+    color: var(--cyan);
+    border-color: transparent;
+}
 
 /* ============================================================
    Dot indicators
@@ -489,9 +535,17 @@ tr:hover td { background: var(--bg-hover); }
     vertical-align: middle;
 }
 
-.dot-active { background: var(--green); }
-.dot-inactive { background: var(--text-muted); }
-.dot-danger { background: var(--coral); }
+.dot-active {
+    background: var(--green);
+}
+
+.dot-inactive {
+    background: var(--text-muted);
+}
+
+.dot-danger {
+    background: var(--coral);
+}
 
 /* ============================================================
    Modal
@@ -499,7 +553,7 @@ tr:hover td { background: var(--bg-hover); }
 .modal-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,.35);
+    background: rgba(0, 0, 0, .35);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -515,7 +569,7 @@ tr:hover td { background: var(--bg-hover); }
     max-width: 640px;
     max-height: 80vh;
     overflow-y: auto;
-    box-shadow: 0 16px 48px rgba(0,0,0,.12);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, .12);
 }
 
 .modal h2 {
@@ -555,14 +609,22 @@ tr:hover td { background: var(--bg-hover); }
     color: #fff;
     font-size: 12px;
     font-weight: 500;
-    box-shadow: 0 4px 16px rgba(0,0,0,.15);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, .15);
     animation: fadeIn .12s ease-out;
     background: var(--text);
 }
 
-.toast-success { background: var(--green); }
-.toast-warning { background: var(--amber); }
-.toast-error { background: var(--coral); }
+.toast-success {
+    background: var(--green);
+}
+
+.toast-warning {
+    background: var(--amber);
+}
+
+.toast-error {
+    background: var(--coral);
+}
 
 /* ============================================================
    Empty state
@@ -573,7 +635,10 @@ tr:hover td { background: var(--bg-hover); }
     color: var(--text-muted);
 }
 
-.empty-state p { margin-bottom: 6px; font-size: 14px; }
+.empty-state p {
+    margin-bottom: 6px;
+    font-size: 14px;
+}
 
 .empty-state .empty-icon {
     font-size: 28px;
@@ -660,25 +725,63 @@ tr:hover td { background: var(--bg-hover); }
 /* ============================================================
    Utilities
    ============================================================ */
-.mono { font-family: var(--font-mono); }
-.text-secondary { color: var(--text-secondary); }
-.text-muted { color: var(--text-muted); }
-.text-sm { font-size: 12px; }
-.text-xs { font-size: 11px; }
+.mono {
+    font-family: var(--font-mono);
+}
+
+.text-secondary {
+    color: var(--text-secondary);
+}
+
+.text-muted {
+    color: var(--text-muted);
+}
+
+.text-sm {
+    font-size: 12px;
+}
+
+.text-xs {
+    font-size: 11px;
+}
 
 /* ============================================================
    Animations
    ============================================================ */
-@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
-.fade-in { animation: fadeIn .12s ease-out; }
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.fade-in {
+    animation: fadeIn .12s ease-out;
+}
 
 /* ============================================================
    Scrollbar
    ============================================================ */
-::-webkit-scrollbar { width: 5px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+::-webkit-scrollbar {
+    width: 5px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+}
 
 /* ============================================================
    Pre / Code
@@ -733,7 +836,22 @@ pre {
     letter-spacing: .3px;
 }
 
-.method-get    { background: var(--cyan-light);   color: var(--cyan); }
-.method-post   { background: var(--green-light);  color: var(--green); }
-.method-put    { background: var(--amber-light);  color: var(--amber); }
-.method-delete { background: var(--coral-light);  color: var(--coral); }
+.method-get {
+    background: var(--cyan-light);
+    color: var(--cyan);
+}
+
+.method-post {
+    background: var(--green-light);
+    color: var(--green);
+}
+
+.method-put {
+    background: var(--amber-light);
+    color: var(--amber);
+}
+
+.method-delete {
+    background: var(--coral-light);
+    color: var(--coral);
+}

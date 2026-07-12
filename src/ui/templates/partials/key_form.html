@@ -35,17 +35,22 @@
 </div>
 
 <script>
-document.getElementById('key-form').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    const data = Object.fromEntries(new FormData(e.target));
-    data.template_id = data.provider_id;
-    delete data.provider_id;
-    const resp = await fetch('/api/templates/keys', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(data)
+    document.getElementById('key-form').addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const data = Object.fromEntries(new FormData(e.target));
+        data.template_id = data.provider_id;
+        delete data.provider_id;
+        const resp = await fetch('/api/templates/keys', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        if (resp.ok) {
+            document.querySelector('.modal-overlay').remove();
+            location.reload();
+        } else {
+            const err = await resp.json();
+            document.getElementById('toast').innerHTML = '<div class="toast toast-error fade-in">' + (err.detail || 'Error') + '</div>';
+        }
     });
-    if (resp.ok) { document.querySelector('.modal-overlay').remove(); location.reload(); }
-    else { const err = await resp.json(); document.getElementById('toast').innerHTML = '<div class="toast toast-error fade-in">' + (err.detail || 'Error') + '</div>'; }
-});
 </script>

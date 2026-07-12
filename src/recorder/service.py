@@ -1,6 +1,3 @@
-"""
-Service layer for Action Recorder.
-"""
 from __future__ import annotations
 
 import json
@@ -8,7 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from fastapi import HTTPException, status
+from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -17,6 +14,10 @@ from src.core.config import settings
 from src.core.exceptions import safe_json_parse
 from src.core.models import ActionRecording, CookieProfile, RecordedAction, WebsiteTemplate
 from src.recorder.recorder import record_actions
+
+"""
+Service layer for Action Recorder.
+"""
 
 
 async def _resolve_template(db: AsyncSession, template_id_or_name: str) -> WebsiteTemplate:
@@ -52,11 +53,11 @@ async def _resolve_template(db: AsyncSession, template_id_or_name: str) -> Websi
 
 
 async def start_recording(
-    db: AsyncSession,
-    template_id: str,
-    cookie_profile_id: str | None = None,
-    headless: bool = False,
-    with_prompts: bool = True,
+        db: AsyncSession,
+        template_id: str,
+        cookie_profile_id: str | None = None,
+        headless: bool = False,
+        with_prompts: bool = True,
 ) -> dict[str, Any]:
     """
     Start a recording session: open browser, capture actions, save to DB.
@@ -159,9 +160,9 @@ def _try_parse_json(value: Any) -> Any:
 
 
 def _export_recording(
-    recording: ActionRecording,
-    raw_actions: list[dict[str, Any]],
-    template_name: str,
+        recording: ActionRecording,
+        raw_actions: list[dict[str, Any]],
+        template_name: str,
 ) -> Path:
     """Exports recording to a JSON file for manual analysis."""
     recordings_dir = Path(settings.project_root) / "data" / "recordings"

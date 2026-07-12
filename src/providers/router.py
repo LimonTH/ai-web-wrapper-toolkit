@@ -1,4 +1,5 @@
 import json
+
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -33,7 +34,6 @@ from src.providers.service import (
 router = APIRouter()
 
 
-# MUST be before /{template_id} to avoid "keys" matching as template_id
 @router.get("/keys", response_model=list[VirtualApiKeyRead])
 async def list_keys(db: AsyncSession = Depends(get_db)):
     return await get_all_keys(db)
@@ -41,8 +41,8 @@ async def list_keys(db: AsyncSession = Depends(get_db)):
 
 @router.post("/keys", response_model=VirtualApiKeyRead, status_code=201)
 async def create_key_endpoint(
-    data: VirtualApiKeyCreate,
-    db: AsyncSession = Depends(get_db),
+        data: VirtualApiKeyCreate,
+        db: AsyncSession = Depends(get_db),
 ):
     return await create_virtual_key(db, data)
 
@@ -68,8 +68,8 @@ async def list_templates(db: AsyncSession = Depends(get_db)):
 
 @router.post("", response_model=WebsiteTemplateRead, status_code=201)
 async def create_template_endpoint(
-    data: WebsiteTemplateCreate,
-    db: AsyncSession = Depends(get_db),
+        data: WebsiteTemplateCreate,
+        db: AsyncSession = Depends(get_db),
 ):
     return await create_template(db, data)
 
@@ -81,9 +81,9 @@ async def get_template_endpoint(template_id: str, db: AsyncSession = Depends(get
 
 @router.put("/{template_id}", response_model=WebsiteTemplateRead)
 async def update_template_endpoint(
-    template_id: str,
-    data: WebsiteTemplateUpdate,
-    db: AsyncSession = Depends(get_db),
+        template_id: str,
+        data: WebsiteTemplateUpdate,
+        db: AsyncSession = Depends(get_db),
 ):
     return await update_template(db, template_id, data)
 
@@ -100,9 +100,9 @@ async def list_endpoints(template_id: str, db: AsyncSession = Depends(get_db)):
 
 @router.post("/{template_id}/endpoints", response_model=ApiEndpointRead, status_code=201)
 async def create_endpoint_endpoint(
-    template_id: str,
-    data: ApiEndpointCreate,
-    db: AsyncSession = Depends(get_db),
+        template_id: str,
+        data: ApiEndpointCreate,
+        db: AsyncSession = Depends(get_db),
 ):
     data.template_id = template_id
     return await create_endpoint(db, data)
@@ -110,9 +110,9 @@ async def create_endpoint_endpoint(
 
 @router.put("/endpoints/{endpoint_id}", response_model=ApiEndpointRead)
 async def update_endpoint_endpoint(
-    endpoint_id: str,
-    data: ApiEndpointUpdate,
-    db: AsyncSession = Depends(get_db),
+        endpoint_id: str,
+        data: ApiEndpointUpdate,
+        db: AsyncSession = Depends(get_db),
 ):
     return await update_endpoint(db, endpoint_id, data)
 

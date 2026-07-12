@@ -12,7 +12,8 @@
 {% if providers %}
 <div class="section-card">
     <h3>Start Recording</h3>
-    <p>Opens a Playwright browser with injected JS that intercepts every user action and prompts you to describe each one. Linked XHR/fetch responses are captured automatically.</p>
+    <p>Opens a Playwright browser with injected JS that intercepts every user action and prompts you to describe each
+        one. Linked XHR/fetch responses are captured automatically.</p>
 
     <form id="record-form">
         <div class="form-row">
@@ -61,26 +62,30 @@
 <div class="table-wrapper">
     <table>
         <thead>
-            <tr>
-                <th>ID</th>
-                <th>Actions</th>
-                <th>Status</th>
-                <th>Date</th>
-                <th></th>
-            </tr>
+        <tr>
+            <th>ID</th>
+            <th>Actions</th>
+            <th>Status</th>
+            <th>Date</th>
+            <th></th>
+        </tr>
         </thead>
         <tbody>
-            {% for r in recordings %}
-            <tr>
-                <td class="mono text-sm text-secondary">{{ r.id[:8] }}...</td>
-                <td>{{ r.actions|length }}</td>
-                <td><span class="tag tag-{% if r.status == 'completed' %}success{% else %}warning{% endif %}">{{ r.status }}</span></td>
-                <td class="text-sm text-secondary" style="white-space:nowrap;">{{ r.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
-                <td>
-                    <button class="btn btn-sm" onclick="viewRecording('{{ r.id }}')">View</button>
-                </td>
-            </tr>
-            {% endfor %}
+        {% for r in recordings %}
+        <tr>
+            <td class="mono text-sm text-secondary">{{ r.id[:8] }}...</td>
+            <td>{{ r.actions|length }}</td>
+            <td><span
+                    class="tag tag-{% if r.status == 'completed' %}success{% else %}warning{% endif %}">{{ r.status }}</span>
+            </td>
+            <td class="text-sm text-secondary" style="white-space:nowrap;">{{ r.created_at.strftime('%Y-%m-%d %H:%M')
+                }}
+            </td>
+            <td>
+                <button class="btn btn-sm" onclick="viewRecording('{{ r.id }}')">View</button>
+            </td>
+        </tr>
+        {% endfor %}
         </tbody>
     </table>
 </div>
@@ -99,67 +104,67 @@
 <div id="modal"></div>
 
 <script>
-// Toggle switch
-document.querySelectorAll('.toggle').forEach(function(t) {
-    var input = t.querySelector('input');
-    if (input.checked) t.classList.add('is-on');
-    t.addEventListener('click', function(e) {
-        var input = this.querySelector('input');
-        input.checked = !input.checked;
-        this.classList.toggle('is-on', input.checked);
+    // Toggle switch
+    document.querySelectorAll('.toggle').forEach(function (t) {
+        var input = t.querySelector('input');
+        if (input.checked) t.classList.add('is-on');
+        t.addEventListener('click', function (e) {
+            var input = this.querySelector('input');
+            input.checked = !input.checked;
+            this.classList.toggle('is-on', input.checked);
+        });
     });
-});
 
-document.getElementById('record-form').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    const data = Object.fromEntries(new FormData(e.target));
-    const params = new URLSearchParams();
-    if (data.cookie_profile_id) params.set('cookie_profile_id', data.cookie_profile_id);
-    if (data.headless) params.set('headless', 'true');
-    if (!data.with_prompts) params.set('with_prompts', 'false');
+    document.getElementById('record-form').addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const data = Object.fromEntries(new FormData(e.target));
+        const params = new URLSearchParams();
+        if (data.cookie_profile_id) params.set('cookie_profile_id', data.cookie_profile_id);
+        if (data.headless) params.set('headless', 'true');
+        if (!data.with_prompts) params.set('with_prompts', 'false');
 
-    const url = '/api/actions/' + data.provider_id + '/record?' + params.toString();
-    showToast('Browser opening... Close browser when done.', 'success');
+        const url = '/api/actions/' + data.provider_id + '/record?' + params.toString();
+        showToast('Browser opening... Close browser when done.', 'success');
 
-    try {
-        const resp = await fetch(url, {method: 'POST'});
-        const result = await resp.json();
-        showToast('Recording complete: ' + result.actions_count + ' actions saved.', 'success');
-        setTimeout(() => location.reload(), 1500);
-    } catch(e) {
-        showToast('Recording failed', 'error');
-    }
-});
-
-async function viewRecording(id) {
-    try {
-        const resp = await fetch('/api/actions/recordings/' + id);
-        const data = await resp.json();
-        let html = '<div class="modal-overlay" ><div class="modal"><h2>Recording: ' + id.slice(0, 8) + '</h2>';
-        html += '<div style="margin-bottom:12px;font-size:12px;color:var(--text-secondary);">';
-        html += 'Status: ' + data.status + ' | Actions: ' + (data.actions || []).length;
-        html += ' | Created: ' + new Date(data.created_at).toLocaleString();
-        html += '</div>';
-        if (data.actions && data.actions.length > 0) {
-            html += '<table><thead><tr><th>#</th><th>Type</th><th>Description</th><th>Result</th><th>Element</th></tr></thead><tbody>';
-            data.actions.forEach(function(a) {
-                html += '<tr>';
-                html += '<td>' + a.sequence + '</td>';
-                html += '<td><span class="tag">' + a.action_type + '</span></td>';
-                html += '<td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + (a.user_description || '') + '">' + (a.user_description || '-') + '</td>';
-                html += '<td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + (a.result_description || '') + '">' + (a.result_description || '-') + '</td>';
-                html += '<td class="mono text-sm" style="max-width:120px;overflow:hidden;text-overflow:ellipsis;">' + (a.action_context?.elementText || '-') + '</td>';
-                html += '</tr>';
-            });
-            html += '</tbody></table>';
-        } else {
-            html += '<div class="empty-state"><p>No actions recorded.</p></div>';
+        try {
+            const resp = await fetch(url, {method: 'POST'});
+            const result = await resp.json();
+            showToast('Recording complete: ' + result.actions_count + ' actions saved.', 'success');
+            setTimeout(() => location.reload(), 1500);
+        } catch (e) {
+            showToast('Recording failed', 'error');
         }
-        html += '<div class="modal-actions"><button class="btn" onclick="this.closest(\'.modal-overlay\').remove()">Close</button></div></div></div>';
-        document.getElementById('modal').innerHTML = html;
-    } catch(e) {
-        showToast('Failed to load recording', 'error');
+    });
+
+    async function viewRecording(id) {
+        try {
+            const resp = await fetch('/api/actions/recordings/' + id);
+            const data = await resp.json();
+            let html = '<div class="modal-overlay" ><div class="modal"><h2>Recording: ' + id.slice(0, 8) + '</h2>';
+            html += '<div style="margin-bottom:12px;font-size:12px;color:var(--text-secondary);">';
+            html += 'Status: ' + data.status + ' | Actions: ' + (data.actions || []).length;
+            html += ' | Created: ' + new Date(data.created_at).toLocaleString();
+            html += '</div>';
+            if (data.actions && data.actions.length > 0) {
+                html += '<table><thead><tr><th>#</th><th>Type</th><th>Description</th><th>Result</th><th>Element</th></tr></thead><tbody>';
+                data.actions.forEach(function (a) {
+                    html += '<tr>';
+                    html += '<td>' + a.sequence + '</td>';
+                    html += '<td><span class="tag">' + a.action_type + '</span></td>';
+                    html += '<td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + (a.user_description || '') + '">' + (a.user_description || '-') + '</td>';
+                    html += '<td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + (a.result_description || '') + '">' + (a.result_description || '-') + '</td>';
+                    html += '<td class="mono text-sm" style="max-width:120px;overflow:hidden;text-overflow:ellipsis;">' + (a.action_context?.elementText || '-') + '</td>';
+                    html += '</tr>';
+                });
+                html += '</tbody></table>';
+            } else {
+                html += '<div class="empty-state"><p>No actions recorded.</p></div>';
+            }
+            html += '<div class="modal-actions"><button class="btn" onclick="this.closest(\'.modal-overlay\').remove()">Close</button></div></div></div>';
+            document.getElementById('modal').innerHTML = html;
+        } catch (e) {
+            showToast('Failed to load recording', 'error');
+        }
     }
-}
 </script>
 {% endblock %}

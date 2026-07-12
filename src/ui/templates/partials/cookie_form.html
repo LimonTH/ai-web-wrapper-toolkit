@@ -29,52 +29,54 @@
 </div>
 
 <script>
-let savedProviderId = null;
-let savedProfileId = null;
+    let savedProviderId = null;
+    let savedProfileId = null;
 
-document.querySelector('select[name="provider_id"]').addEventListener('change', function() {
-    savedProviderId = this.value;
-    document.getElementById('btn-login').style.display = this.value ? 'inline-flex' : 'none';
-});
+    document.querySelector('select[name="provider_id"]').addEventListener('change', function () {
+        savedProviderId = this.value;
+        document.getElementById('btn-login').style.display = this.value ? 'inline-flex' : 'none';
+    });
 
-document.getElementById('btn-login').addEventListener('click', async function() {
-    if (!savedProfileId) {
-        const form = document.getElementById('cookie-form');
-        const data = Object.fromEntries(new FormData(form));
-        data.template_id = savedProviderId;
+    document.getElementById('btn-login').addEventListener('click', async function () {
+        if (!savedProfileId) {
+            const form = document.getElementById('cookie-form');
+            const data = Object.fromEntries(new FormData(form));
+            data.template_id = savedProviderId;
+            const resp = await fetch('/api/cookies', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            if (!resp.ok) {
+                const err = await resp.json();
+                document.getElementById('toast').innerHTML = '<div class="toast toast-error fade-in">' + JSON.stringify(err.detail) + '</div>';
+                return;
+            }
+            const profile = await resp.json();
+            savedProfileId = profile.id;
+        }
+        document.querySelector('.modal-overlay').remove();
+        document.getElementById('toast').innerHTML = '<div class="toast toast-success fade-in">Browser opening for login...</div>';
+        fetch('/api/cookies/' + savedProfileId + '/login?headless=false', {method: 'POST'});
+        setTimeout(() => location.reload(), 5000);
+    });
+
+    document.getElementById('cookie-form').addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const data = Object.fromEntries(new FormData(e.target));
+        data.template_id = data.provider_id;
+        delete data.provider_id;
         const resp = await fetch('/api/cookies', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(data)
         });
-        if (!resp.ok) {
+        if (resp.ok) {
+            document.querySelector('.modal-overlay').remove();
+            location.reload();
+        } else {
             const err = await resp.json();
             document.getElementById('toast').innerHTML = '<div class="toast toast-error fade-in">' + JSON.stringify(err.detail) + '</div>';
-            return;
         }
-        const profile = await resp.json();
-        savedProfileId = profile.id;
-    }
-    document.querySelector('.modal-overlay').remove();
-    document.getElementById('toast').innerHTML = '<div class="toast toast-success fade-in">Browser opening for login...</div>';
-    fetch('/api/cookies/' + savedProfileId + '/login?headless=false', {method: 'POST'});
-    setTimeout(() => location.reload(), 5000);
-});
-
-document.getElementById('cookie-form').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    const data = Object.fromEntries(new FormData(e.target));
-    data.template_id = data.provider_id;
-    delete data.provider_id;
-    const resp = await fetch('/api/cookies', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(data)
     });
-    if (resp.ok) { document.querySelector('.modal-overlay').remove(); location.reload(); }
-    else {
-        const err = await resp.json();
-        document.getElementById('toast').innerHTML = '<div class="toast toast-error fade-in">' + JSON.stringify(err.detail) + '</div>';
-    }
-});
 </script>

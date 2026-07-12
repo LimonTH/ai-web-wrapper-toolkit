@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime, timezone
+
 from sqlalchemy import String, Text, Boolean, DateTime, ForeignKey, JSON, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -33,16 +34,20 @@ class WebsiteTemplate(Base):
     icon_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
 
     auth_type: Mapped[str] = mapped_column(String(32), default="cookie")  # cookie | token | basic | oauth | none
-    capabilities: Mapped[list] = mapped_column(JSON, default=list)  # ["chat","projects","skills","image_gen","files","tools"]
+    capabilities: Mapped[list] = mapped_column(JSON,
+                                               default=list)  # ["chat","projects","skills","image_gen","files","tools"]
     default_headers: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
 
-    endpoints: Mapped[list["ApiEndpoint"]] = relationship("ApiEndpoint", back_populates="template", cascade="all, delete-orphan")
-    cookie_profiles: Mapped[list["CookieProfile"]] = relationship("CookieProfile", back_populates="template", cascade="all, delete-orphan")
-    virtual_keys: Mapped[list["VirtualApiKey"]] = relationship("VirtualApiKey", back_populates="template", cascade="all, delete-orphan")
+    endpoints: Mapped[list["ApiEndpoint"]] = relationship("ApiEndpoint", back_populates="template",
+                                                          cascade="all, delete-orphan")
+    cookie_profiles: Mapped[list["CookieProfile"]] = relationship("CookieProfile", back_populates="template",
+                                                                  cascade="all, delete-orphan")
+    virtual_keys: Mapped[list["VirtualApiKey"]] = relationship("VirtualApiKey", back_populates="template",
+                                                               cascade="all, delete-orphan")
 
 
 class ApiEndpoint(Base):
@@ -51,7 +56,8 @@ class ApiEndpoint(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     template_id: Mapped[str] = mapped_column(ForeignKey("website_templates.id", ondelete="CASCADE"), nullable=False)
 
-    functional_block: Mapped[str] = mapped_column(String(64), nullable=False)  # chat | projects | skills | image_gen | files | tools
+    functional_block: Mapped[str] = mapped_column(String(64),
+                                                  nullable=False)  # chat | projects | skills | image_gen | files | tools
     label: Mapped[str] = mapped_column(String(255), nullable=False)
     method: Mapped[str] = mapped_column(String(16), nullable=False)  # GET, POST, PUT, DELETE
     path: Mapped[str] = mapped_column(String(512), nullable=False)
@@ -96,7 +102,8 @@ class VirtualApiKey(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     template_id: Mapped[str] = mapped_column(ForeignKey("website_templates.id", ondelete="CASCADE"), nullable=False)
-    cookie_profile_id: Mapped[str | None] = mapped_column(ForeignKey("cookie_profiles.id", ondelete="SET NULL"), nullable=True)
+    cookie_profile_id: Mapped[str | None] = mapped_column(ForeignKey("cookie_profiles.id", ondelete="SET NULL"),
+                                                          nullable=True)
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     key_value: Mapped[str] = mapped_column(String(512), unique=True, nullable=False)  # wsk_live_xxx
@@ -120,7 +127,8 @@ class ActionRecording(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     template_id: Mapped[str] = mapped_column(ForeignKey("website_templates.id", ondelete="CASCADE"), nullable=False)
-    cookie_profile_id: Mapped[str | None] = mapped_column(ForeignKey("cookie_profiles.id", ondelete="SET NULL"), nullable=True)
+    cookie_profile_id: Mapped[str | None] = mapped_column(ForeignKey("cookie_profiles.id", ondelete="SET NULL"),
+                                                          nullable=True)
 
     status: Mapped[str] = mapped_column(String(32), default="recording")  # recording | completed | cancelled
     start_url: Mapped[str] = mapped_column(String(512), nullable=False)

@@ -13,36 +13,36 @@
 <div class="table-wrapper">
     <table>
         <thead>
-            <tr>
-                <th>Provider</th>
-                <th>ID</th>
-                <th>URL Pattern</th>
-                <th>Capabilities</th>
-                <th></th>
-            </tr>
+        <tr>
+            <th>Provider</th>
+            <th>ID</th>
+            <th>URL Pattern</th>
+            <th>Capabilities</th>
+            <th></th>
+        </tr>
         </thead>
         <tbody>
-            {% for p in providers %}
-            <tr>
-                <td><strong>{{ p.name }}</strong></td>
-                <td class="mono" style="color:var(--text-secondary)">{{ p.id }}</td>
-                <td class="mono" style="font-size:12px; color:var(--text-secondary)">
-                    {% if p.url_pattern %}{{ p.url_pattern }}{% else %}<span class="text-muted">generic</span>{% endif %}
-                </td>
-                <td>
-                    {% if p.supports %}
-                    {% for cap in p.supports %}
-                    <span class="tag tag-accent">{{ cap }}</span>
-                    {% endfor %}
-                    {% else %}
-                    <span class="tag" style="opacity:0.4">—</span>
-                    {% endif %}
-                </td>
-                <td>
-                    <span class="tag tag-success">active</span>
-                </td>
-            </tr>
-            {% endfor %}
+        {% for p in providers %}
+        <tr>
+            <td><strong>{{ p.name }}</strong></td>
+            <td class="mono" style="color:var(--text-secondary)">{{ p.id }}</td>
+            <td class="mono" style="font-size:12px; color:var(--text-secondary)">
+                {% if p.url_pattern %}{{ p.url_pattern }}{% else %}<span class="text-muted">generic</span>{% endif %}
+            </td>
+            <td>
+                {% if p.supports %}
+                {% for cap in p.supports %}
+                <span class="tag tag-accent">{{ cap }}</span>
+                {% endfor %}
+                {% else %}
+                <span class="tag" style="opacity:0.4">—</span>
+                {% endif %}
+            </td>
+            <td>
+                <span class="tag tag-success">active</span>
+            </td>
+        </tr>
+        {% endfor %}
         </tbody>
     </table>
 </div>
@@ -50,7 +50,8 @@
 <div class="section-divider">How to add</div>
 
 <div class="section-card">
-    <p class="text-sm">Create a Python file in <code>src/proxy/providers/adapters/</code> with a class extending <code>BaseProviderAdapter</code>, decorate with <code>@register_adapter</code> — auto-discovered on server start.</p>
+    <p class="text-sm">Create a Python file in <code>src/proxy/providers/adapters/</code> with a class extending <code>BaseProviderAdapter</code>,
+        decorate with <code>@register_adapter</code> — auto-discovered on server start.</p>
 </div>
 
 {% else %}

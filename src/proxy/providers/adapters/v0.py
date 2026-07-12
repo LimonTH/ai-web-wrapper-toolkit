@@ -1,10 +1,10 @@
-"""
-Adapter for v0.app (Vercel AI).
-"""
-
 from src.core.models import ApiEndpoint
 from src.proxy.providers.base import BaseProviderAdapter
 from src.proxy.providers.registry import register_adapter
+
+"""
+Adapter for v0.app (Vercel AI).
+"""
 
 
 @register_adapter

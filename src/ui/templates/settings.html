@@ -19,17 +19,23 @@
         <div class="form-group">
             <label>Proxy Scope</label>
             <select name="proxy_scope">
-                <option value="none" {% if proxy_scope == 'none' %}selected{% endif %}>None</option>
-                <option value="browser" {% if proxy_scope == 'browser' %}selected{% endif %}>Browser only</option>
-                <option value="app" {% if proxy_scope == 'app' %}selected{% endif %}>Application only</option>
-                <option value="both" {% if proxy_scope == 'both' %}selected{% endif %}>Both</option>
+                <option value="none" {% if proxy_scope==
+                'none' %}selected{% endif %}>None</option>
+                <option value="browser" {% if proxy_scope==
+                'browser' %}selected{% endif %}>Browser only</option>
+                <option value="app" {% if proxy_scope==
+                'app' %}selected{% endif %}>Application only</option>
+                <option value="both" {% if proxy_scope==
+                'both' %}selected{% endif %}>Both</option>
             </select>
         </div>
         <div class="form-group">
             <label>Browser Engine</label>
             <select name="playwright_browser">
-                <option value="chromium" {% if playwright_browser == 'chromium' %}selected{% endif %}>Chromium</option>
-                <option value="firefox" {% if playwright_browser == 'firefox' %}selected{% endif %}>Firefox</option>
+                <option value="chromium" {% if playwright_browser==
+                'chromium' %}selected{% endif %}>Chromium</option>
+                <option value="firefox" {% if playwright_browser==
+                'firefox' %}selected{% endif %}>Firefox</option>
             </select>
         </div>
         <div class="modal-actions" style="justify-content:flex-start;border:none;padding:0;margin-top:4px;">
@@ -40,26 +46,27 @@
 
 <div class="section-card" style="max-width:560px;">
     <h3>Notes</h3>
-    <p class="text-sm">Settings are stored in the database and apply <strong>immediately</strong> — no restart needed.</p>
+    <p class="text-sm">Settings are stored in the database and apply <strong>immediately</strong> — no restart needed.
+    </p>
 </div>
 
 <div id="modal"></div>
 
 <script>
-document.getElementById('settings-form').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    const data = Object.fromEntries(new FormData(e.target));
-    data.playwright_headless = data.playwright_headless === 'true';
-    const resp = await fetch('/ui/settings/save', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(data)
+    document.getElementById('settings-form').addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const data = Object.fromEntries(new FormData(e.target));
+        data.playwright_headless = data.playwright_headless === 'true';
+        const resp = await fetch('/ui/settings/save', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        if (resp.ok) {
+            document.getElementById('toast').innerHTML = '<div class="toast toast-success fade-in">✅ Settings saved — applied immediately</div>';
+        } else {
+            document.getElementById('toast').innerHTML = '<div class="toast toast-error fade-in">❌ Failed to save settings</div>';
+        }
     });
-    if (resp.ok) {
-        document.getElementById('toast').innerHTML = '<div class="toast toast-success fade-in">✅ Settings saved — applied immediately</div>';
-    } else {
-        document.getElementById('toast').innerHTML = '<div class="toast toast-error fade-in">❌ Failed to save settings</div>';
-    }
-});
 </script>
 {% endblock %}

@@ -1,10 +1,9 @@
 import json
+
 from fastapi import APIRouter, Depends, Query
-from fastapi.responses import JSONResponse, HTMLResponse
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.database import get_db
-from src.core.schemas import CookieProfileCreate, CookieProfileUpdate, CookieProfileRead
 from src.cookie_collector.service import (
     get_all_profiles,
     get_profile_by_id,
@@ -14,6 +13,8 @@ from src.cookie_collector.service import (
     run_browser_login,
     test_cookies,
 )
+from src.core.database import get_db
+from src.core.schemas import CookieProfileCreate, CookieProfileUpdate, CookieProfileRead
 
 router = APIRouter()
 
@@ -29,8 +30,8 @@ async def list_profiles(db: AsyncSession = Depends(get_db)):
 
 @router.post("", response_model=CookieProfileRead, status_code=201)
 async def create_profile_endpoint(
-    data: CookieProfileCreate,
-    db: AsyncSession = Depends(get_db),
+        data: CookieProfileCreate,
+        db: AsyncSession = Depends(get_db),
 ):
     return await create_profile(db, data)
 
@@ -42,9 +43,9 @@ async def get_profile(profile_id: str, db: AsyncSession = Depends(get_db)):
 
 @router.put("/{profile_id}", response_model=CookieProfileRead)
 async def update_profile_endpoint(
-    profile_id: str,
-    data: CookieProfileUpdate,
-    db: AsyncSession = Depends(get_db),
+        profile_id: str,
+        data: CookieProfileUpdate,
+        db: AsyncSession = Depends(get_db),
 ):
     return await update_profile(db, profile_id, data)
 
@@ -60,10 +61,10 @@ async def delete_profile_endpoint(profile_id: str, db: AsyncSession = Depends(ge
 
 @router.post("/{profile_id}/login")
 async def login(
-    profile_id: str,
-    headless: bool = Query(False),
-    auto_close: bool = Query(True, description="Auto-close browser after login detected"),
-    db: AsyncSession = Depends(get_db),
+        profile_id: str,
+        headless: bool = Query(False),
+        auto_close: bool = Query(True, description="Auto-close browser after login detected"),
+        db: AsyncSession = Depends(get_db),
 ):
     """Opens a browser for manual login."""
     profile = await run_browser_login(db, profile_id, headless=headless, auto_close=auto_close)
@@ -78,9 +79,9 @@ async def login(
 
 @router.post("/{profile_id}/test")
 async def test(
-    profile_id: str,
-    headless: bool = Query(True),
-    db: AsyncSession = Depends(get_db),
+        profile_id: str,
+        headless: bool = Query(True),
+        db: AsyncSession = Depends(get_db),
 ):
     """Tests cookies — opens the site with injected cookies."""
     result = await test_cookies(db, profile_id, headless=headless)
