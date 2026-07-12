@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Web Wrapper Toolkit{% endblock %}
+
+{% block content %}
+<div class="toolbar">
+    <div>
+        <h1>Dashboard</h1>
+        <h2>Web Wrapper Toolkit — turn any AI website into an OpenAI-compatible API</h2>
+    </div>
+</div>
+
+<div class="cards">
+    <div class="card">
+        <div class="value">{{ stats['providers'] }}</div>
+        <div class="label">Providers</div>
+    </div>
+    <div class="card">
+        <div class="value">{{ stats['cookies'] }}</div>
+        <div class="label">Cookie Profiles</div>
+    </div>
+    <div class="card">
+        <div class="value">{{ stats['keys'] }}</div>
+        <div class="label">API Keys</div>
+    </div>
+</div>
+
+<div class="section-divider">Production</div>
+
+<div class="section-card">
+    <h3>Providers</h3>
+    <p>Registered provider adapters for AI websites (ChatGPT, Claude, DeepSeek, etc.). Each provider is defined as a Python class with <code>@register_adapter</code> in <code>src/proxy/providers/adapters/</code>. Automatically discovered on startup.</p>
+</div>
+
+<div class="section-card">
+    <h3>Cookies</h3>
+    <p>Authentication profiles with login sessions captured via Playwright browser. Each profile stores cookies and storage state for a specific provider.</p>
+</div>
+
+<div class="section-card">
+    <h3>API Keys</h3>
+    <p>Virtual API keys in <code>wsk_live_*</code> format. Compatible with any OpenAI client. Set <code>OPENAI_BASE_URL=http://localhost:8000/v1</code> — the proxy routes through the correct provider adapter based on the key.</p>
+</div>
+
+<div class="section-divider">Dev Tools</div>
+
+<div class="section-card">
+    <h3>Recorder</h3>
+    <p>Browser-based action recorder for reverse-engineering site APIs. Captures user actions and XHR traffic to help build provider adapters for new websites.</p>
+</div>
+
+<div class="section-card">
+    <h3>Settings</h3>
+    <p>Proxy configuration, browser engine, and application parameters.</p>
+</div>
+{% endblock %}

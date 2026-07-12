@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}{{ template.name }} — Endpoints{% endblock %}
+
+{% block content %}
+<div class="toolbar">
+    <div>
+        <h1>{{ template.name }}</h1>
+        <h2>{{ template.base_url }} — {{ endpoints|length }} endpoints</h2>
+    </div>
+    <a href="/ui/api" class="btn btn-ghost">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        Back
+    </a>
+</div>
+
+{% if endpoints %}
+<div class="table-wrap">
+    <table>
+        <thead>
+            <tr>
+                <th>Method</th>
+                <th>Path</th>
+                <th>Block</th>
+                <th>Streaming</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ep in endpoints %}
+            <tr>
+                <td><span class="method method-{{ ep.method|lower }}">{{ ep.method }}</span></td>
+                <td class="mono text-xs" style="max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ ep.path }}">{{ ep.path }}</td>
+                <td>
+                    <select class="block-select" data-ep-id="{{ ep.id }}">
+                        <option value="">— assign —</option>
+                        {% for block in ['chat','projects','skills','image_gen','files','tools','search','code','embeddings','tts','stt','vision','reasoning','web_search','artifacts','memory'] %}
+                        <option value="{{ block }}" {% if ep.functional_block == block %}selected{% endif %}>{{ block }}</option>
+                        {% endfor %}
+                    </select>
+                </td>
+                <td>{% if ep.is_streaming %}<span class="tag tag-cyan">stream</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                <td>
+                    <button class="btn btn-sm btn-danger"
+                            hx-delete="/api/templates/endpoints/{{ ep.id }}"
+                            hx-target="#toast"
+                            hx-swap="innerHTML"
+                            hx-confirm="Delete endpoint?">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="empty-state">
+    <div class="empty-icon">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/></svg>
+    </div>
+    <p>No endpoints recorded yet.</p>
+    <p class="text-xs text-secondary">Click <strong>Record</strong> on the API Inspector page to capture traffic.</p>
+</div>
+{% endif %}
+
+<div id="modal"></div>
+
+<script>
+document.querySelectorAll('.block-select').forEach(function(sel) {
+    sel.addEventListener('change', async function() {
+        const epId = this.dataset.epId;
+        const block = this.value;
+        const resp = await fetch('/api/templates/endpoints/' + epId, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({functional_block: block})
+        });
+        if (resp.ok) {
+            document.getElementById('toast').innerHTML = '<div class="toast toast-success fade-in">Block updated</div>';
+            setTimeout(() => document.getElementById('toast').innerHTML = '', 2000);
+        }
+    });
+});
+</script>
+{% endblock %}

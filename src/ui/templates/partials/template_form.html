@@ -1,0 +1,56 @@
+<div class="modal-overlay fade-in">
+    <div class="modal">
+        <h2>New Template</h2>
+        <form id="template-form">
+            <div class="form-group">
+                <label>Name</label>
+                <input name="name" placeholder="e.g., ChatGPT, Claude, DeepSeek" required>
+            </div>
+            <div class="form-group">
+                <label>Base URL</label>
+                <input name="base_url" id="base-url-input" placeholder="https://chatgpt.com" required>
+            </div>
+            <div class="form-group">
+                <label>Auth Type</label>
+                <select name="auth_type">
+                    <option value="cookie">Cookie</option>
+                    <option value="token">Bearer Token</option>
+                    <option value="none">None</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Description</label>
+                <textarea name="description" rows="2" placeholder="What does this wrapper provide?"></textarea>
+            </div>
+            <div class="form-group" id="capabilities-preview" style="display:none;">
+                <label>Capabilities</label>
+                <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px" id="capabilities-list"></div>
+                <span style="font-size:11px;color:var(--text-muted);margin-top:4px;display:block;">Determined from provider adapter. Update in adapter code if needed.</span>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Create</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// Preview capabilities when URL changes
+document.getElementById('base-url-input').addEventListener('input', async function() {
+    const url = this.value.trim();
+    if (!url.startsWith('http')) return;
+    try {
+        const resp = await fetch('/api/templates/capabilities-preview?url=' + encodeURIComponent(url));
+        if (resp.ok) {
+            const data = await resp.json();
+            const container = document.getElementById('capabilities-list');
+            const preview = document.getElementById('capabilities-preview');
+            container.innerHTML = data.capabilities.map(function(c) {
+                return '<span class="tag tag-accent">' + c + '</span>';
+            }).join('');
+            preview.style.display = data.capabilities.length > 0 ? 'block' : 'none';
+        }
+    } catch(e) {}
+});
+</script>

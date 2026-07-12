@@ -1,0 +1,51 @@
+<div class="modal-overlay fade-in">
+    <div class="modal">
+        <h2>New Virtual API Key</h2>
+        <form id="key-form">
+            <div class="form-group">
+                <label>Key Name</label>
+                <input name="name" placeholder="e.g., Production Key" required>
+            </div>
+            <div class="form-group">
+                <label>Provider</label>
+                <select name="provider_id" required id="provider-select"
+                        hx-get="/ui/cookies/by-template"
+                        hx-target="#cookie-profiles"
+                        hx-swap="innerHTML"
+                        hx-trigger="change"
+                        hx-vals="js:{template_id: document.getElementById('provider-select').value}">
+                    <option value="" disabled selected>— Select Provider —</option>
+                    {% for p in providers %}
+                    <option value="{{ p.id }}">{{ p.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Cookie Profile</label>
+                <select name="cookie_profile_id" id="cookie-profiles" required>
+                    <option value="" disabled selected>— Select a provider first —</option>
+                </select>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Generate Key</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.getElementById('key-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(e.target));
+    data.template_id = data.provider_id;
+    delete data.provider_id;
+    const resp = await fetch('/api/templates/keys', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    });
+    if (resp.ok) { document.querySelector('.modal-overlay').remove(); location.reload(); }
+    else { const err = await resp.json(); document.getElementById('toast').innerHTML = '<div class="toast toast-error fade-in">' + (err.detail || 'Error') + '</div>'; }
+});
+</script>

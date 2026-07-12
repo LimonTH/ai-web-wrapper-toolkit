@@ -1,0 +1,4 @@
+<option value="" disabled selected>— Select Cookies —</option>
+{% for p in profiles %}
+<option value="{{ p.id }}">{{ p.name }}</option>
+{% endfor %}
