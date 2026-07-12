@@ -13,6 +13,7 @@ from src.cookie_collector.browser import (
     _safe_close_browser,
 )
 from src.core.settings_service import get_settings_service
+from src.recorder.scripts import get_full_script
 
 """
 Browser-based action recorder.
