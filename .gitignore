@@ -28,6 +28,7 @@ ms-playwright/
 # Build
 dist/
 build/
+.uv/
 
 # OS
 .DS_Store

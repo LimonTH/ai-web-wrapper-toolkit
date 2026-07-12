@@ -14,10 +14,13 @@ uv sync
 
 # Run the server
 uv run python -m src.main
+```
 
-# Or with Docker
+### Docker
+
+```bash
 docker build -t ai-web-wrapper .
-docker run -p 8000:8000 ai-web-wrapper
+docker run -p 8000:8000 -v ./data:/app/data ai-web-wrapper
 ```
 
 ## Usage
