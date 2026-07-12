@@ -40,6 +40,41 @@
     --shadow: 0 1px 3px rgba(0, 0, 0, .06), 0 1px 2px rgba(0, 0, 0, .04);
 }
 
+/* ============================================================
+   Dark theme
+   ============================================================ */
+[data-theme="dark"] {
+    --bg: #0d0d1a;
+    --bg-surface: #16162a;
+    --bg-elevated: #1e1e38;
+    --bg-hover: #26264a;
+    --bg-active: #2e2e5a;
+
+    --border: #2a2a4a;
+    --border-light: #1e1e38;
+    --border-accent: #3a3a6a;
+
+    --text: #e2e2ee;
+    --text-secondary: #9a9aba;
+    --text-muted: #6a6a8a;
+
+    --accent: #4a90d9;
+    --accent-light: #4a90d91a;
+    --accent-hover: #5aa0e9;
+    --accent-text: #6aa0e9;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, .2);
+    --shadow: 0 1px 3px rgba(0, 0, 0, .25), 0 1px 2px rgba(0, 0, 0, .2);
+}
+
+[data-theme="dark"] .modal-overlay {
+    background: rgba(0, 0, 0, .65);
+}
+
+[data-theme="dark"] .card:hover {
+    border-color: var(--border-accent);
+}
+
 *, *::before, *::after {
     box-sizing: border-box;
     margin: 0;
@@ -78,15 +113,22 @@ body {
 
 .sidebar .logo {
     padding: 22px 20px 18px;
-    font-size: 15px;
-    font-weight: 700;
-    color: var(--accent);
     border-bottom: 1px solid var(--border);
     margin-bottom: 4px;
     line-height: 1.3;
+}
+
+.sidebar .logo .logo-row {
     display: flex;
     align-items: center;
     gap: 8px;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--accent);
+}
+
+.sidebar .logo .logo-row svg {
+    flex-shrink: 0;
 }
 
 .sidebar .logo small {
@@ -94,7 +136,8 @@ body {
     font-size: 10px;
     font-weight: 400;
     color: var(--text-muted);
-    margin-top: 2px;
+    margin-top: 3px;
+    padding-left: 26px;
 }
 
 .sidebar .nav-section {
@@ -154,6 +197,52 @@ body {
     stroke-width: 1.8;
     stroke-linecap: round;
     stroke-linejoin: round;
+}
+
+/* ============================================================
+   Theme button (sidebar logo row)
+   ============================================================ */
+.theme-btn {
+    margin-left: auto;
+    background: none;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    padding: 3px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    transition: color 0.15s, background 0.15s, border-color 0.15s;
+    line-height: 1;
+}
+
+.theme-btn:hover {
+    color: var(--text-secondary);
+    background: var(--bg-hover);
+    border-color: var(--border);
+}
+
+.theme-btn svg {
+    width: 16px;
+    height: 16px;
+    display: block;
+}
+
+.theme-btn .sun-icon {
+    display: none;
+}
+
+.theme-btn .moon-icon {
+    display: block;
+}
+
+[data-theme="dark"] .theme-btn .sun-icon {
+    display: block;
+}
+
+[data-theme="dark"] .theme-btn .moon-icon {
+    display: none;
 }
 
 /* ============================================================
