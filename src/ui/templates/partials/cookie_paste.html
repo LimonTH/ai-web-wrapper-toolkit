@@ -19,6 +19,10 @@
                 </select>
             </div>
             <div class="form-group">
+                <label>Description <span class="text-secondary">(optional)</span></label>
+                <textarea name="description" rows="2" placeholder="Any notes about this session"></textarea>
+            </div>
+            <div class="form-group">
                 <label>Cookies JSON</label>
                 <textarea name="cookies_json" rows="8" placeholder='[{"name":"session","value":"xxx","domain":".example.com","path":"/","httpOnly":true},...]' required></textarea>
             </div>
@@ -40,7 +44,7 @@ document.getElementById('paste-form').addEventListener('submit', async function(
     const resp = await fetch('/api/cookies', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({name: data.name, template_id: data.provider_id, cookies: cookies})
+        body: JSON.stringify({name: data.name, description: data.description, template_id: data.provider_id, cookies: cookies})
     });
     if (resp.ok) { document.querySelector('.modal-overlay').remove(); location.reload(); }
     else { const err = await resp.json(); document.getElementById('toast').innerHTML = '<div class="toast toast-error fade-in">'+JSON.stringify(err.detail)+'</div>'; }

@@ -86,9 +86,24 @@ async def http_exception_handler(request, exc: HTTPException | StarletteHTTPExce
     return JSONResponse(status_code=exc.status_code, content={"detail": text})
 
 
+from starlette.responses import FileResponse
+from starlette.staticfiles import StaticFiles as StarletteStaticFiles
+
+
+class _NoCacheStaticFiles(StarletteStaticFiles):
+    """Disables caching for static files in debug mode (dev)."""
+    async def get_response(self, path: str, scope):
+        resp = await super().get_response(path, scope)
+        if settings.debug:
+            resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            resp.headers["Pragma"] = "no-cache"
+            resp.headers["Expires"] = "0"
+        return resp
+
+
 static_dir = Path(__file__).parent / "ui" / "static"
 if static_dir.exists():
-    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+    app.mount("/static", _NoCacheStaticFiles(directory=str(static_dir)), name="static")
 
 
 from src.providers.router import router as template_router
