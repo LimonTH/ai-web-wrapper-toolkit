@@ -164,7 +164,7 @@ def _export_recording(
     template_name: str,
 ) -> Path:
     """Exports recording to a JSON file for manual analysis."""
-    recordings_dir = Path(settings.data_dir) / "recordings"
+    recordings_dir = Path(settings.project_root) / "data" / "recordings"
     recordings_dir.mkdir(parents=True, exist_ok=True)
 
     export = {

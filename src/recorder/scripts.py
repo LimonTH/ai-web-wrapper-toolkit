@@ -9,26 +9,39 @@ _CAPTURE_SCRIPT = r"""
 
     window.__recordedActions = [];
     window.__actionId = 0;
+    window.__recorderReady = false;
 
-    var _panel = document.createElement('div');
-    _panel.id = '__recorderPanel';
-    _panel.innerHTML = '<div style="'
-        + 'position:fixed;bottom:16px;right:16px;z-index:2147483647;'
-        + 'background:#1a1a2e;color:#e0e0e0;border:1px solid #e94560;'
-        + 'border-radius:10px;padding:10px 14px;font:12px/1.4 monospace;'
-        + 'min-width:220px;max-width:300px;box-shadow:0 4px 20px rgba(233,69,96,.4);'
-        + 'pointer-events:none;user-select:none;'
-        + '">'
-        + '<div style="color:#e94560;font-weight:bold;margin-bottom:4px;">&#x1F3AC; RECORDING</div>'
-        + '<div id="__recorderStats" style="font-size:11px;">Actions: 0</div>'
-        + '<div id="__recorderLast" style="font-size:10px;color:#999;margin-top:2px;max-height:36px;overflow:hidden;"></div>'
-        + '</div>';
-    document.body.appendChild(_panel);
+    var _panel = null;
+    var _statsEl = null;
+    var _lastEl = null;
 
-    var _statsEl = document.getElementById('__recorderStats');
-    var _lastEl = document.getElementById('__recorderLast');
+    /* Deferred panel init — body may not exist when add_init_script runs */
+    function _initPanel() {
+        if (document.body) {
+            _panel = document.createElement('div');
+            _panel.id = '__recorderPanel';
+            _panel.innerHTML = '<div style="'
+                + 'position:fixed;bottom:16px;right:16px;z-index:2147483647;'
+                + 'background:#1a1a2e;color:#e0e0e0;border:1px solid #e94560;'
+                + 'border-radius:10px;padding:10px 14px;font:12px/1.4 monospace;'
+                + 'min-width:220px;max-width:300px;box-shadow:0 4px 20px rgba(233,69,96,.4);'
+                + 'pointer-events:none;user-select:none;'
+                + '">'
+                + '<div style="color:#e94560;font-weight:bold;margin-bottom:4px;">&#x1F3AC; RECORDING</div>'
+                + '<div id="__recorderStats" style="font-size:11px;">Actions: 0</div>'
+                + '<div id="__recorderLast" style="font-size:10px;color:#999;margin-top:2px;max-height:36px;overflow:hidden;"></div>'
+                + '</div>';
+            document.body.appendChild(_panel);
+            _statsEl = document.getElementById('__recorderStats');
+            _lastEl = document.getElementById('__recorderLast');
+            window.__recorderReady = true;
+        } else {
+            setTimeout(_initPanel, 50);
+        }
+    }
 
     function _updatePanel(action) {
+        if (!window.__recorderReady) return;
         if (action.type === 'api_response') return;
         var userCount = 0;
         for (var i = 0; i < window.__recordedActions.length; i++) {
@@ -38,6 +51,16 @@ _CAPTURE_SCRIPT = r"""
         var label = (action.elementText || action.element || '?').slice(0, 40);
         _lastEl.textContent = action.type + ': ' + label;
     }
+
+    /* Expose panel updater so _PROMPT_SCRIPT can refresh it on skip */
+    window.__recorderUpdatePanel = function() {
+        if (!window.__recorderReady) return;
+        var userCount = 0;
+        for (var i = 0; i < window.__recordedActions.length; i++) {
+            if (window.__recordedActions[i].type !== 'api_response') userCount++;
+        }
+        _statsEl.textContent = 'Actions: ' + userCount;
+    };
 
     function _getSelector(el) {
         if (!el || el === document.body) return 'body';
@@ -64,7 +87,13 @@ _CAPTURE_SCRIPT = r"""
         }
     }
 
+    /* Suppress event capture while the signature modal is open */
+    function _isModalOpen() {
+        return document.getElementById('__recorderModal') !== null;
+    }
+
     document.addEventListener('click', function(e) {
+        if (_isModalOpen()) return;
         if (window.getSelection() && window.getSelection().toString()) return;
         var target = e.target;
         var tag = (target.tagName || '').toLowerCase();
@@ -100,6 +129,7 @@ _CAPTURE_SCRIPT = r"""
     }, true);
 
     document.addEventListener('submit', function(e) {
+        if (_isModalOpen()) return;
         var seq = ++window.__actionId;
         var form = e.target;
         var data = {};
@@ -122,6 +152,7 @@ _CAPTURE_SCRIPT = r"""
     }, true);
 
     document.addEventListener('keydown', function(e) {
+        if (_isModalOpen()) return;
         if (e.key !== 'Enter' || e.shiftKey) return;
         var target = e.target;
         var tag = (target.tagName || '').toLowerCase();
@@ -143,6 +174,8 @@ _CAPTURE_SCRIPT = r"""
 
     var _origFetch = window.fetch;
     window.fetch = function() {
+        /* Still capture API responses even when modal is open,
+           but don't link to the wrong action if modal is blocking */
         var args = arguments;
         var url = (args[0] && args[0].url) ? args[0].url : (args[0] || '');
         var opts = args[1] || {};
@@ -196,56 +229,155 @@ _CAPTURE_SCRIPT = r"""
     };
 
     window.__recorderOnAction = function() {};
+    /* Start deferred panel init (body may not exist yet) */
+    _initPanel();
+    /* Fallback: re-init on DOMContentLoaded if not ready */
+    document.addEventListener('DOMContentLoaded', function() {
+        if (!window.__recorderReady) _initPanel();
+    });
 })();
 """
 
+# ---------------------------------------------------------------------------
+# Кастомный модальный overlay вместо window.prompt()
+# ---------------------------------------------------------------------------
+# Причина: Chromium блокирует/авто-отклоняет window.prompt() в контексте
+# Playwright (особенно headless). Модальный HTML-overlay работает везде.
+# ---------------------------------------------------------------------------
 _PROMPT_SCRIPT = r"""
 (function() {
     if (window.__recorderPromptInstalled) return;
     window.__recorderPromptInstalled = true;
 
     var _origOnAction = window.__recorderOnAction || function() {};
+    var _overlay = null;
+    var _activeCallback = null;
 
-    window.__recorderOnAction = function(action) {
-        if (action.type === 'api_response') {
-            return _origOnAction(action);
+    function _closeModal() {
+        if (_overlay) {
+            _overlay.parentNode.removeChild(_overlay);
+            _overlay = null;
+            _activeCallback = null;
         }
+    }
+
+    function _showModal(action, onConfirm) {
+        _closeModal();
 
         var actionTypeLabel = action.type === 'click' ? 'клик' :
                               action.type === 'submit' ? 'отправка формы' :
                               action.type === 'input_enter' ? 'ввод текста' :
                               action.type;
 
-        var elementInfo = (action.elementText || action.element || 'элемент').slice(0, 50);
+        var elementInfo = (action.elementText || action.element || 'элемент').slice(0, 60);
         var defaultAnswer = action.type === 'click'
             ? 'Нажал на ' + elementInfo
             : (action.type === 'submit' ? 'Отправил форму' : 'Ввёл текст');
+        var pageUrl = (action.pageUrl || '').slice(0, 80);
 
-        var desc1 = '';
-        try {
-            desc1 = prompt(
-                '[Действие #' + action.seq + '] ' + actionTypeLabel + ' на "' + elementInfo + '"' +
-                '\n\n1/2: Что вы сейчас сделали?',
-                defaultAnswer
-            );
-        } catch(e) { desc1 = ''; }
-        if (desc1 === null) desc1 = '';
+        var el = document.createElement('div');
+        el.id = '__recorderModal';
+        el.innerHTML =
+            '<div style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:2147483646;'
+                + 'background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;'
+                + 'pointer-events:auto;">'
+            + '<div style="background:#1a1a2e;color:#e0e0e0;border:1px solid #e94560;'
+                + 'border-radius:12px;padding:24px 28px;font:14px/1.5 sans-serif;'
+                + 'min-width:420px;max-width:520px;box-shadow:0 8px 40px rgba(0,0,0,0.6);">'
+            + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">'
+            + '<div style="color:#e94560;font-weight:bold;font-size:16px;">&#x270D;&#xFE0F; Подпишите действие #' + action.seq + '</div>'
+            + '<span class="__recorderModalBadge" style="background:' + (action.type === 'click' ? '#e94560' : action.type === 'submit' ? '#f5a623' : '#4a90d9') + ';color:#fff;border-radius:4px;padding:2px 10px;font-size:12px;font-weight:600;">' + actionTypeLabel + '</span>'
+            + '</div>'
+            + '<div style="background:#16213e;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px;word-break:break-word;">'
+            + '<div style="color:#aaa;margin-bottom:4px;">Элемент: <span style="color:#e0e0e0;">' + _escHtml(elementInfo) + '</span></div>'
+            + (pageUrl ? '<div style="color:#aaa;">URL: <span style="color:#e0e0e0;font-size:12px;">' + _escHtml(pageUrl) + '</span></div>' : '')
+            + '</div>'
+            + '<label style="display:block;font-size:13px;color:#aaa;margin-bottom:4px;">1/2. Что вы сделали?</label>'
+            + '<input id="__recorderDesc1" type="text" value="' + _escAttr(defaultAnswer) + '"'
+                + 'style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #2a2a4a;border-radius:6px;'
+                + 'background:#0f0f23;color:#e0e0e0;font:13px/1.4 sans-serif;margin-bottom:12px;outline:none;"'
+                + 'autofocus>'
+            + '<label style="display:block;font-size:13px;color:#aaa;margin-bottom:4px;">2/2. Что произошло в ответ? <span style="color:#666;">(результат, новый контент, ошибка)</span></label>'
+            + '<input id="__recorderDesc2" type="text" placeholder="Например: появился ответ, загрузилась страница..."'
+                + 'style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #2a2a4a;border-radius:6px;'
+                + 'background:#0f0f23;color:#e0e0e0;font:13px/1.4 sans-serif;margin-bottom:18px;outline:none;">'
+            + '<div style="display:flex;justify-content:flex-end;gap:10px;">'
+            + '<button id="__recorderModalSkip" style="padding:8px 16px;border:1px solid #333;border-radius:6px;background:transparent;color:#888;cursor:pointer;font-size:13px;">Пропустить</button>'
+            + '<button id="__recorderModalConfirm" style="padding:8px 20px;border:none;border-radius:6px;background:#e94560;color:#fff;cursor:pointer;font-weight:600;font-size:13px;">&#x2714; Подтвердить</button>'
+            + '</div>'
+            + '</div></div>';
 
-        var desc2 = '';
-        try {
-            desc2 = prompt(
-                '[Действие #' + action.seq + '] ' + actionTypeLabel + ' на "' + elementInfo + '"' +
-                '\n\n2/2: Что произошло в ответ?' +
-                '\n(какой результат? новый контент? ошибка?)',
-                ''
-            );
-        } catch(e) { desc2 = ''; }
-        if (desc2 === null) desc2 = '';
+        document.body.appendChild(el);
+        _overlay = el;
 
-        action.userDescription = desc1;
-        action.resultDescription = desc2;
+        var inp1 = document.getElementById('__recorderDesc1');
+        var inp2 = document.getElementById('__recorderDesc2');
 
-        return _origOnAction(action);
+        document.getElementById('__recorderModalConfirm').addEventListener('click', function() {
+            var d1 = inp1.value.trim();
+            var d2 = inp2.value.trim();
+            _closeModal();
+            onConfirm(d1, d2);
+        });
+
+        document.getElementById('__recorderModalSkip').addEventListener('click', function() {
+            _closeModal();
+            onConfirm('', '');
+        });
+
+        inp1.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') { e.preventDefault(); inp2.focus(); }
+        });
+        inp2.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                document.getElementById('__recorderModalConfirm').click();
+            }
+        });
+
+        setTimeout(function() { inp1.focus(); inp1.select(); }, 100);
+    }
+
+    function _escHtml(s) {
+        if (!s) return '';
+        return ('' + s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+    function _escAttr(s) {
+        if (!s) return '';
+        return ('' + s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
+
+    var _pendingQueue = [];
+
+    window.__recorderOnAction = function(action) {
+        if (action.type === 'api_response') {
+            return _origOnAction(action);
+        }
+
+        if (_overlay) {
+            _pendingQueue.push(action);
+            return;
+        }
+
+        _showModal(action, function(desc1, desc2) {
+            /* Skip = remove action from recording entirely */
+            if (desc1 === '' && desc2 === '') {
+                var idx = window.__recordedActions.indexOf(action);
+                if (idx !== -1) window.__recordedActions.splice(idx, 1);
+                if (typeof window.__recorderUpdatePanel === 'function') {
+                    window.__recorderUpdatePanel();
+                }
+            } else {
+                action.userDescription = desc1;
+                action.resultDescription = desc2;
+            }
+            _origOnAction(action);
+
+            if (_pendingQueue.length > 0) {
+                var next = _pendingQueue.shift();
+                window.__recorderOnAction(next);
+            }
+        });
     };
 })();
 """
