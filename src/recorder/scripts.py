@@ -264,15 +264,15 @@ _PROMPT_SCRIPT = r"""
     function _showModal(action, onConfirm) {
         _closeModal();
 
-        var actionTypeLabel = action.type === 'click' ? 'клик' :
-                              action.type === 'submit' ? 'отправка формы' :
-                              action.type === 'input_enter' ? 'ввод текста' :
+        var actionTypeLabel = action.type === 'click' ? 'click' :
+                              action.type === 'submit' ? 'form submit' :
+                              action.type === 'input_enter' ? 'text input' :
                               action.type;
 
-        var elementInfo = (action.elementText || action.element || 'элемент').slice(0, 60);
+        var elementInfo = (action.elementText || action.element || 'element').slice(0, 60);
         var defaultAnswer = action.type === 'click'
-            ? 'Нажал на ' + elementInfo
-            : (action.type === 'submit' ? 'Отправил форму' : 'Ввёл текст');
+            ? 'Clicked on ' + elementInfo
+            : (action.type === 'submit' ? 'Submitted form' : 'Entered text');
         var pageUrl = (action.pageUrl || '').slice(0, 80);
 
         var el = document.createElement('div');
@@ -285,25 +285,25 @@ _PROMPT_SCRIPT = r"""
                 + 'border-radius:12px;padding:24px 28px;font:14px/1.5 sans-serif;'
                 + 'min-width:420px;max-width:520px;box-shadow:0 8px 40px rgba(0,0,0,0.6);">'
             + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">'
-            + '<div style="color:#e94560;font-weight:bold;font-size:16px;">&#x270D;&#xFE0F; Подпишите действие #' + action.seq + '</div>'
+            + '<div style="color:#e94560;font-weight:bold;font-size:16px;">&#x270D;&#xFE0F; Sign Action #' + action.seq + '</div>'
             + '<span class="__recorderModalBadge" style="background:' + (action.type === 'click' ? '#e94560' : action.type === 'submit' ? '#f5a623' : '#4a90d9') + ';color:#fff;border-radius:4px;padding:2px 10px;font-size:12px;font-weight:600;">' + actionTypeLabel + '</span>'
             + '</div>'
             + '<div style="background:#16213e;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px;word-break:break-word;">'
-            + '<div style="color:#aaa;margin-bottom:4px;">Элемент: <span style="color:#e0e0e0;">' + _escHtml(elementInfo) + '</span></div>'
+            + '<div style="color:#aaa;margin-bottom:4px;">Element: <span style="color:#e0e0e0;">' + _escHtml(elementInfo) + '</span></div>'
             + (pageUrl ? '<div style="color:#aaa;">URL: <span style="color:#e0e0e0;font-size:12px;">' + _escHtml(pageUrl) + '</span></div>' : '')
             + '</div>'
-            + '<label style="display:block;font-size:13px;color:#aaa;margin-bottom:4px;">1/2. Что вы сделали?</label>'
+            + '<label style="display:block;font-size:13px;color:#aaa;margin-bottom:4px;">1/2. What did you do?</label>'
             + '<input id="__recorderDesc1" type="text" value="' + _escAttr(defaultAnswer) + '"'
                 + 'style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #2a2a4a;border-radius:6px;'
                 + 'background:#0f0f23;color:#e0e0e0;font:13px/1.4 sans-serif;margin-bottom:12px;outline:none;"'
                 + 'autofocus>'
-            + '<label style="display:block;font-size:13px;color:#aaa;margin-bottom:4px;">2/2. Что произошло в ответ? <span style="color:#666;">(результат, новый контент, ошибка)</span></label>'
-            + '<input id="__recorderDesc2" type="text" placeholder="Например: появился ответ, загрузилась страница..."'
+            + '<label style="display:block;font-size:13px;color:#aaa;margin-bottom:4px;">2/2. What happened? <span style="color:#666;">(result, new content, error)</span></label>'
+            + '<input id="__recorderDesc2" type="text" placeholder="e.g. response appeared, page loaded..."'
                 + 'style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #2a2a4a;border-radius:6px;'
                 + 'background:#0f0f23;color:#e0e0e0;font:13px/1.4 sans-serif;margin-bottom:18px;outline:none;">'
             + '<div style="display:flex;justify-content:flex-end;gap:10px;">'
-            + '<button id="__recorderModalSkip" style="padding:8px 16px;border:1px solid #333;border-radius:6px;background:transparent;color:#888;cursor:pointer;font-size:13px;">Пропустить</button>'
-            + '<button id="__recorderModalConfirm" style="padding:8px 20px;border:none;border-radius:6px;background:#e94560;color:#fff;cursor:pointer;font-weight:600;font-size:13px;">&#x2714; Подтвердить</button>'
+            + '<button id="__recorderModalSkip" style="padding:8px 16px;border:1px solid #333;border-radius:6px;background:transparent;color:#888;cursor:pointer;font-size:13px;">Skip</button>'
+            + '<button id="__recorderModalConfirm" style="padding:8px 20px;border:none;border-radius:6px;background:#e94560;color:#fff;cursor:pointer;font-weight:600;font-size:13px;">&#x2714; Confirm</button>'
             + '</div>'
             + '</div></div>';
 
