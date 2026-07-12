@@ -87,7 +87,7 @@ _CAPTURE_SCRIPT = r"""
         }
     }
 
-    /* Suppress event capture while the signature modal is open */
+    /* Block event capture while the signature modal is open */
     function _isModalOpen() {
         return document.getElementById('__recorderModal') !== null;
     }
@@ -99,10 +99,13 @@ _CAPTURE_SCRIPT = r"""
         var tag = (target.tagName || '').toLowerCase();
         var type = (target.type || '').toLowerCase();
 
-        var interactive = ['a','button','input','select','textarea','summary'];
+        var interactive = ['a','button','input','select','textarea','summary','option','optgroup'];
+        var role = target.getAttribute('role') || '';
         var isClickable = interactive.indexOf(tag) !== -1 ||
-            target.getAttribute('role') === 'button' ||
-            target.getAttribute('role') === 'link' ||
+            role === 'button' || role === 'link' ||
+            role === 'option' || role === 'menuitem' ||
+            role === 'menuitemcheckbox' || role === 'menuitemradio' ||
+            target.closest('select') ||
             target.onclick ||
             target.closest('[onclick]') ||
             target.closest('button') ||
@@ -238,12 +241,7 @@ _CAPTURE_SCRIPT = r"""
 })();
 """
 
-# ---------------------------------------------------------------------------
-# Кастомный модальный overlay вместо window.prompt()
-# ---------------------------------------------------------------------------
-# Причина: Chromium блокирует/авто-отклоняет window.prompt() в контексте
-# Playwright (особенно headless). Модальный HTML-overlay работает везде.
-# ---------------------------------------------------------------------------
+# Playwright (headless). Modal HTML-overlay works everywhere.
 _PROMPT_SCRIPT = r"""
 (function() {
     if (window.__recorderPromptInstalled) return;
@@ -253,16 +251,44 @@ _PROMPT_SCRIPT = r"""
     var _overlay = null;
     var _activeCallback = null;
 
+    var _focusBlockers = null;
+
+    function _installFocusBlockers() {
+        if (_focusBlockers) return;
+        function _blockFocusLeak(e) {
+            if (!_overlay) return;
+            /* If focus is leaving a non-modal element and entering a modal element,
+               stop propagation so the page never sees blur/focusout */
+            var related = e.relatedTarget;
+            if (related && _overlay.contains(related) && !_overlay.contains(e.target)) {
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+            }
+        }
+        document.addEventListener('focusout', _blockFocusLeak, true);
+        document.addEventListener('blur', _blockFocusLeak, true);
+        _focusBlockers = { focusout: _blockFocusLeak, blur: _blockFocusLeak };
+    }
+
+    function _removeFocusBlockers() {
+        if (!_focusBlockers) return;
+        document.removeEventListener('focusout', _focusBlockers.focusout, true);
+        document.removeEventListener('blur', _focusBlockers.blur, true);
+        _focusBlockers = null;
+    }
+
     function _closeModal() {
         if (_overlay) {
             _overlay.parentNode.removeChild(_overlay);
             _overlay = null;
             _activeCallback = null;
         }
+        _removeFocusBlockers();
     }
 
     function _showModal(action, onConfirm) {
         _closeModal();
+        _installFocusBlockers();
 
         var actionTypeLabel = action.type === 'click' ? 'click' :
                               action.type === 'submit' ? 'form submit' :
@@ -277,11 +303,11 @@ _PROMPT_SCRIPT = r"""
 
         var el = document.createElement('div');
         el.id = '__recorderModal';
+        el.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;'
+            + 'z-index:2147483646;background:rgba(0,0,0,0.55);'
+            + 'display:flex;align-items:center;justify-content:center;';
         el.innerHTML =
-            '<div style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:2147483646;'
-                + 'background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;'
-                + 'pointer-events:auto;">'
-            + '<div style="background:#1a1a2e;color:#e0e0e0;border:1px solid #e94560;'
+            '<div style="background:#1a1a2e;color:#e0e0e0;border:1px solid #e94560;'
                 + 'border-radius:12px;padding:24px 28px;font:14px/1.5 sans-serif;'
                 + 'min-width:420px;max-width:520px;box-shadow:0 8px 40px rgba(0,0,0,0.6);">'
             + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">'
@@ -295,8 +321,7 @@ _PROMPT_SCRIPT = r"""
             + '<label style="display:block;font-size:13px;color:#aaa;margin-bottom:4px;">1/2. What did you do?</label>'
             + '<input id="__recorderDesc1" type="text" value="' + _escAttr(defaultAnswer) + '"'
                 + 'style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #2a2a4a;border-radius:6px;'
-                + 'background:#0f0f23;color:#e0e0e0;font:13px/1.4 sans-serif;margin-bottom:12px;outline:none;"'
-                + 'autofocus>'
+                + 'background:#0f0f23;color:#e0e0e0;font:13px/1.4 sans-serif;margin-bottom:12px;outline:none;">'
             + '<label style="display:block;font-size:13px;color:#aaa;margin-bottom:4px;">2/2. What happened? <span style="color:#666;">(result, new content, error)</span></label>'
             + '<input id="__recorderDesc2" type="text" placeholder="e.g. response appeared, page loaded..."'
                 + 'style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #2a2a4a;border-radius:6px;'
@@ -309,6 +334,19 @@ _PROMPT_SCRIPT = r"""
 
         document.body.appendChild(el);
         _overlay = el;
+
+        /* Stop all mouse/pointer events on modal from reaching page dropdown handlers */
+        ['click','mousedown','mouseup','pointerdown','pointerup','touchstart','touchend'].forEach(function(evt) {
+            el.addEventListener(evt, function(e) { e.stopPropagation(); });
+        });
+
+        /* Prevent focus from leaving page elements when clicking non-input parts of modal */
+        el.addEventListener('mousedown', function(e) {
+            var tag = (e.target.tagName || '').toLowerCase();
+            if (tag !== 'input' && tag !== 'textarea') {
+                e.preventDefault();
+            }
+        }, true);
 
         var inp1 = document.getElementById('__recorderDesc1');
         var inp2 = document.getElementById('__recorderDesc2');
@@ -325,17 +363,6 @@ _PROMPT_SCRIPT = r"""
             onConfirm('', '');
         });
 
-        inp1.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') { e.preventDefault(); inp2.focus(); }
-        });
-        inp2.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                document.getElementById('__recorderModalConfirm').click();
-            }
-        });
-
-        setTimeout(function() { inp1.focus(); inp1.select(); }, 100);
     }
 
     function _escHtml(s) {
@@ -359,25 +386,28 @@ _PROMPT_SCRIPT = r"""
             return;
         }
 
-        _showModal(action, function(desc1, desc2) {
-            /* Skip = remove action from recording entirely */
-            if (desc1 === '' && desc2 === '') {
-                var idx = window.__recordedActions.indexOf(action);
-                if (idx !== -1) window.__recordedActions.splice(idx, 1);
-                if (typeof window.__recorderUpdatePanel === 'function') {
-                    window.__recorderUpdatePanel();
+        /* Defer modal — let the page process the event first (dropdown open, etc.) */
+        setTimeout(function() {
+            _showModal(action, function(desc1, desc2) {
+                /* Skip = remove action from recording entirely */
+                if (desc1 === '' && desc2 === '') {
+                    var idx = window.__recordedActions.indexOf(action);
+                    if (idx !== -1) window.__recordedActions.splice(idx, 1);
+                    if (typeof window.__recorderUpdatePanel === 'function') {
+                        window.__recorderUpdatePanel();
+                    }
+                } else {
+                    action.userDescription = desc1;
+                    action.resultDescription = desc2;
                 }
-            } else {
-                action.userDescription = desc1;
-                action.resultDescription = desc2;
-            }
-            _origOnAction(action);
+                _origOnAction(action);
 
-            if (_pendingQueue.length > 0) {
-                var next = _pendingQueue.shift();
-                window.__recorderOnAction(next);
-            }
-        });
+                if (_pendingQueue.length > 0) {
+                    var next = _pendingQueue.shift();
+                    window.__recorderOnAction(next);
+                }
+            });
+        }, 0);
     };
 })();
 """
