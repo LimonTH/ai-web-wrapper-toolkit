@@ -57,6 +57,26 @@ async def record_actions(
 
         page = await context.new_page()
 
+        import json
+
+        # Receive actions in real-time via Python callback (survives page close)
+        async def _on_action(action_json: str) -> None:
+            nonlocal captured
+            try:
+                action = json.loads(action_json)
+                seq = action.get("seq")
+                if seq is not None:
+                    # Replace existing action with same seq (updated with descriptions)
+                    for i, existing in enumerate(captured):
+                        if existing.get("seq") == seq:
+                            captured[i] = action
+                            return
+                captured.append(action)
+            except json.JSONDecodeError:
+                pass
+
+        await page.expose_function("__python_recorder_on_action", _on_action)
+
         script = get_full_script(with_prompts=with_prompts)
         await page.add_init_script(script)
 
@@ -69,12 +89,19 @@ async def record_actions(
         except Exception:
             pass
 
+        # Also try to extract remaining actions on close as fallback
         try:
-            captured = await page.evaluate(
+            remaining = await page.evaluate(
                 "JSON.parse(JSON.stringify(window.__recordedActions || []))"
             )
-        except Exception as exc:
-            print(f"⚠️ [recorder] Failed to extract actions: {exc}")
+            # Merge — prefer live-captured, append any missing
+            seen = {json.dumps(a, sort_keys=True) for a in captured}
+            for a in remaining:
+                key = json.dumps(a, sort_keys=True)
+                if key not in seen:
+                    captured.append(a)
+        except Exception:
+            pass
 
     except Exception as exc:
         print(f"⚠️ [recorder] Browser error: {type(exc).__name__}: {exc}")

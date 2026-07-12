@@ -82,6 +82,9 @@ _CAPTURE_SCRIPT = r"""
     function _push(action) {
         window.__recordedActions.push(action);
         _updatePanel(action);
+        if (typeof window.__python_recorder_on_action === 'function') {
+            try { window.__python_recorder_on_action(JSON.stringify(action)); } catch(ignored) {}
+        }
         if (typeof window.__recorderOnAction === 'function') {
             try { window.__recorderOnAction(action); } catch(ignored) {}
         }
@@ -252,13 +255,12 @@ _PROMPT_SCRIPT = r"""
     var _activeCallback = null;
 
     var _focusBlockers = null;
+    var _eventGuard = null;
 
     function _installFocusBlockers() {
         if (_focusBlockers) return;
         function _blockFocusLeak(e) {
             if (!_overlay) return;
-            /* If focus is leaving a non-modal element and entering a modal element,
-               stop propagation so the page never sees blur/focusout */
             var related = e.relatedTarget;
             if (related && _overlay.contains(related) && !_overlay.contains(e.target)) {
                 e.stopPropagation();
@@ -277,6 +279,33 @@ _PROMPT_SCRIPT = r"""
         _focusBlockers = null;
     }
 
+    /* Event guard on window (capture) — fires BEFORE document-level handlers.
+       Prevents page modal/popup capture handlers from swallowing clicks on our signer. */
+    function _installEventGuard() {
+        if (_eventGuard) return;
+        function _guard(e) {
+            if (!_overlay) return;
+            /* elementFromPoint uses visual stacking — our modal is topmost */
+            var target = document.elementFromPoint(e.clientX, e.clientY);
+            if (target && _overlay.contains(target)) {
+                /* This event belongs to our modal — stop page handlers from seeing it */
+                e.stopPropagation();
+            }
+        }
+        window.addEventListener('mousedown', _guard, true);
+        window.addEventListener('pointerdown', _guard, true);
+        window.addEventListener('touchstart', _guard, true);
+        _eventGuard = { mousedown: _guard, pointerdown: _guard, touchstart: _guard };
+    }
+
+    function _removeEventGuard() {
+        if (!_eventGuard) return;
+        window.removeEventListener('mousedown', _eventGuard.mousedown, true);
+        window.removeEventListener('pointerdown', _eventGuard.pointerdown, true);
+        window.removeEventListener('touchstart', _eventGuard.touchstart, true);
+        _eventGuard = null;
+    }
+
     function _closeModal() {
         if (_overlay) {
             _overlay.parentNode.removeChild(_overlay);
@@ -284,11 +313,13 @@ _PROMPT_SCRIPT = r"""
             _activeCallback = null;
         }
         _removeFocusBlockers();
+        _removeEventGuard();
     }
 
     function _showModal(action, onConfirm) {
         _closeModal();
         _installFocusBlockers();
+        _installEventGuard();
 
         var actionTypeLabel = action.type === 'click' ? 'click' :
                               action.type === 'submit' ? 'form submit' :
@@ -401,6 +432,14 @@ _PROMPT_SCRIPT = r"""
                     action.resultDescription = desc2;
                 }
                 _origOnAction(action);
+
+                /* Sync the updated action (with descriptions) to Python.
+                   Skip case: don't re-send (already sent raw from _push) */
+                if (typeof window.__python_recorder_on_action === 'function') {
+                    if (desc1 !== '' || desc2 !== '') {
+                        try { window.__python_recorder_on_action(JSON.stringify(action)); } catch(ignored) {}
+                    }
+                }
 
                 if (_pendingQueue.length > 0) {
                     var next = _pendingQueue.shift();
