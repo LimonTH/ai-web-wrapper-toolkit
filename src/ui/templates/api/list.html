@@ -55,7 +55,7 @@
 
     <form id="record-form" style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-top:12px;">
         <div class="form-group" style="margin-bottom:0;flex:1;min-width:200px;">
-            <label>Template</label>
+            <label>Provider</label>
             <select name="template_id" required>
                 {% for t in templates %}
                 <option value="{{ t.id }}">{{ t.name }} ({{ t.base_url[:30] }})</option>
@@ -104,8 +104,8 @@
             <line x1="4" y1="4" x2="9" y2="9"/>
         </svg>
     </div>
-    <p>No templates yet.</p>
-    <p class="text-xs text-secondary">Create a template first, then inspect its API traffic.</p>
+    <p>No providers yet.</p>
+    <p class="text-xs text-secondary">Create a provider first, then inspect its API traffic.</p>
 </div>
 {% endif %}
 

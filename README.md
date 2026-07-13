@@ -48,6 +48,10 @@ curl http://localhost:8000/v1/<site-provider>/chat/completions
 | **Recorder**  | Browser-based action recorder for reverse-engineering site APIs            |
 | **Proxy**     | OpenAI-compatible `/v1/chat/completions` endpoint that routes to providers |
 
+### Adding a new provider
+
+See the **[developer guide](docs/ADDING_PROVIDERS.md)** for step-by-step instructions on creating adapters for new AI websites.
+
 ## Tech Stack
 
 - **Backend**: FastAPI + Uvicorn + SQLAlchemy + Pydantic v2

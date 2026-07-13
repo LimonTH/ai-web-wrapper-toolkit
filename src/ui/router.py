@@ -47,13 +47,17 @@ async def dashboard(request: Request, db: AsyncSession = Depends(get_db)):
     )
 
 
+@router.get("/providers", response_class=HTMLResponse)
+async def providers_nav(request: Request):
+    return await providers_page(request)
+
 @router.get("/templates", response_class=HTMLResponse)
 async def providers_page(request: Request):
     providers = get_registry().list_providers()
     return _render(
         "templates/list.html",
         request=request,
-        active="templates",
+        active="providers",
         providers=providers,
     )
 
