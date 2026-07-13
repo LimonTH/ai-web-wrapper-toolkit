@@ -1,78 +1,78 @@
-from abc import ABC, abstractmethod
 from typing import Any
 
-from src.core.models import WebsiteTemplate, ApiEndpoint
+from src.providers.config import ProviderConfig
 
 """
 Base provider adapter — plugin interface for site-specific API adapters.
-Each site (ChatGPT, Claude, Gemini, etc.) has its own API format.
+Now config-driven: default methods delegate to ProviderConfig.
+Adapters can override any method for custom logic.
 """
 
 
-class BaseProviderAdapter(ABC):
+class BaseProviderAdapter:
     """
     Base provider adapter class.
 
-    Minimum required definitions:
+    Attributes:
     - provider_id: str
-    - supports: set[str] — which functional_block values are supported
-
-    And methods to implement:
-    - get_endpoint(template, block, method) → ApiEndpoint | None
-    - build_payload(endpoint, body, block) → dict
-    - extract_content(data, block) → str
-    - extract_stream_chunk(chunk_data, block) → str | None
+    - provider_name: str
+    - url_pattern: str  — URL substring for auto-mapping
+    - supports: set[str] — which endpoint keys are supported
+    - config: ProviderConfig | None — loaded from YAML
     """
 
     provider_id: str = ""
     provider_name: str = ""
-    url_pattern: str = ""  # URL substring for auto-mapping (e.g. "chat.openai.com")
+    url_pattern: str = ""
     supports: set[str] = {"chat"}
+    config: ProviderConfig | None = None
 
-    @abstractmethod
-    def get_endpoint(
-            self,
-            template: WebsiteTemplate,
-            block: str,
-            method: str = "POST",
-    ) -> ApiEndpoint | None:
-        """Returns an endpoint for the specified functional_block."""
-        ...
+    # ── Config-driven defaults ─────────────────────────────────────
 
-    @abstractmethod
     def build_payload(
-            self,
-            endpoint: ApiEndpoint,
-            body: dict[str, Any],
-            block: str = "chat",
+        self,
+        endpoint_key: str,
+        body: dict[str, Any],
+        block: str = "chat",
     ) -> dict[str, Any]:
-        """Converts OpenAI request format to the site's format."""
-        ...
+        """Default: delegates to ProviderConfig.build_body()."""
+        if self.config:
+            return self.config.build_body(endpoint_key, body)
+        return body
 
-    @abstractmethod
     def extract_content(
-            self,
-            data: dict[str, Any] | str | list,
-            block: str = "chat",
+        self,
+        data: dict[str, Any] | str | list,
+        block: str = "chat",
     ) -> str:
-        """Extracts text/content from the site's response."""
-        ...
+        """Default: delegates to ProviderConfig.extract_content()."""
+        if self.config:
+            return self.config.extract_content(block, data)
+        if isinstance(data, str):
+            return data
+        return ""
 
-    @abstractmethod
     def extract_stream_chunk(
-            self,
-            chunk_data: dict[str, Any],
-            block: str = "chat",
+        self,
+        chunk_data: dict[str, Any],
+        block: str = "chat",
     ) -> str | None:
-        """Extracts text from a single SSE streaming chunk."""
-        ...
+        """Default: delegates to ProviderConfig.extract_stream_chunk()."""
+        if self.config:
+            return self.config.extract_stream_chunk(block, chunk_data)
+        return None
+
+    # ── Legacy method kept for backward compat (unused in new flow) ─
 
     def get_headers(
-            self,
-            template: WebsiteTemplate,
-            stream: bool = False,
-            block: str = "chat",
+        self,
+        endpoint_key: str,
+        stream: bool = False,
+        block: str = "chat",
     ) -> dict[str, str]:
+        """Get headers — from config if available, else defaults."""
+        if self.config:
+            return self.config.get_headers(endpoint_key, stream=stream)
         headers: dict[str, str] = {
             "Content-Type": "application/json",
             "Accept": "text/event-stream" if stream else "application/json",
@@ -81,15 +81,15 @@ class BaseProviderAdapter(ABC):
                 "(KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"
             ),
         }
-        if template.default_headers:
-            headers.update(template.default_headers)
         return headers
 
-    def get_model_id(self, template: WebsiteTemplate) -> str:
-        return template.name.lower().replace(" ", "-").replace("_", "-")
+    # ── Model helpers (used by transformer) ─────────────────────────
 
-    def get_model_ids(self, template: WebsiteTemplate) -> list[str]:
-        base_id = self.get_model_id(template)
+    def get_model_id(self, provider_id: str) -> str:
+        return provider_id.lower().replace(" ", "-").replace("_", "-")
+
+    def get_model_ids(self, provider_id: str) -> list[str]:
+        base_id = self.get_model_id(provider_id)
         if not self.supports:
             return [base_id]
         return [f"{base_id}/{block}" for block in sorted(self.supports)]

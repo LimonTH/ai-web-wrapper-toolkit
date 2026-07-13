@@ -43,9 +43,13 @@ async def _resolve_template(db: AsyncSession, template_id_or_name: str) -> Websi
         return template
 
     from src.proxy.providers.registry import get_registry
-    dummy = type("DummyTemplate", (), {"name": template_id_or_name, "base_url": "", "endpoints": []})()
     registry = get_registry()
-    adapter = registry.get_adapter(dummy)
+    adapter = registry.get_adapter_by_template(
+        type("DummyTemplate", (), {
+            "name": template_id_or_name,
+            "base_url": "",
+        })()
+    )
     capabilities = sorted(adapter.supports) if adapter.supports else []
 
     url_pattern = getattr(adapter, "url_pattern", "") or ""

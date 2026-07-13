@@ -1,0 +1,22 @@
+provider_id: deepseek
+name: DeepSeek
+base_url: https://api.deepseek.com
+
+endpoints:
+  chat:
+    path: /v1/chat/completions
+    method: POST
+    headers:
+      content-type: application/json
+      authorization: "Bearer ${body.api_key}"
+    body:
+      messages: ${messages}
+      model: ${body.model}
+      stream: ${body.stream}
+      temperature: ${body.temperature}
+      max_tokens: ${body.max_tokens}
+      top_p: ${body.top_p}
+    extract:
+      content:
+        - "$.choices[0].message.content"
+      stream: "$.choices[0].delta.content"

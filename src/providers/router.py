@@ -128,8 +128,12 @@ async def capabilities_preview(url: str = Query(...)):
     from src.proxy.providers.registry import get_registry
     if not url.startswith("http"):
         return {"capabilities": []}
-    dummy = type("DummyTemplate", (), {"name": "", "base_url": url, "endpoints": []})()
     registry = get_registry()
-    adapter = registry.get_adapter(dummy)
+    adapter = registry.get_adapter_by_template(
+        type("DummyTemplate", (), {
+            "name": "",
+            "base_url": url,
+        })()
+    )
     caps = sorted(adapter.supports) if adapter.supports else []
     return {"capabilities": caps, "provider": adapter.provider_id}

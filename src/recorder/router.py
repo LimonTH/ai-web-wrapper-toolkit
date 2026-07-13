@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import get_db
@@ -7,6 +8,7 @@ from src.recorder.service import (
     start_recording,
     get_recording,
     get_recordings_by_template,
+    export_recording_json,
 )
 
 router = APIRouter()
@@ -48,3 +50,13 @@ async def get_recording_endpoint(
         db: AsyncSession = Depends(get_db),
 ):
     return await get_recording(db, recording_id)
+
+
+@router.post("/recordings/{recording_id}/export")
+async def export_recording_endpoint(
+        recording_id: str,
+        db: AsyncSession = Depends(get_db),
+):
+    recording = await get_recording(db, recording_id)
+    filepath = await export_recording_json(recording)
+    return {"recording_id": recording_id, "filepath": filepath}

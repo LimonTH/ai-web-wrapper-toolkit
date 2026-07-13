@@ -82,8 +82,11 @@ _CAPTURE_SCRIPT = r"""
     function _push(action) {
         window.__recordedActions.push(action);
         _updatePanel(action);
-        /* Don't send to Python yet — wait for user to sign (confirm/skip).
-           Only send after signing, not on initial capture. */
+        /* Send to Python immediately — survives page reload (Playwright expose_function).
+           Descriptions are sent later on confirm via same seq (Python handler replaces by seq). */
+        if (typeof window.__python_recorder_on_action === 'function') {
+            try { window.__python_recorder_on_action(JSON.stringify(action)); } catch(ignored) {}
+        }
         if (typeof window.__recorderOnAction === 'function') {
             try { window.__recorderOnAction(action); } catch(ignored) {}
         }
@@ -190,18 +193,26 @@ _CAPTURE_SCRIPT = r"""
 
     var _origFetch = window.fetch;
     window.fetch = function() {
-        /* Capture API responses linked to recent user actions. */
+        /* Capture API responses linked to recent user actions.
+           IMPORTANT: scan backwards for the last USER action (not api_response)
+           so that multiple sequential API calls all link to the same user action. */
         var args = arguments;
         var url = (args[0] && args[0].url) ? args[0].url : (args[0] || '');
         var opts = args[1] || {};
 
         var actions = window.__recordedActions;
-        var lastAction = actions.length > 0 ? actions[actions.length - 1] : null;
+        var linkedAction = null;
+        for (var _i = actions.length - 1; _i >= 0; _i--) {
+            if (actions[_i].type !== 'api_response') {
+                linkedAction = actions[_i];
+                break;
+            }
+        }
         var startTime = Date.now();
 
         return _origFetch.apply(this, args).then(function(response) {
             var endTime = Date.now();
-            if (!lastAction || (startTime - lastAction.timestamp) > 5000) return response;
+            if (!linkedAction || (startTime - linkedAction.timestamp) > 5000) return response;
 
             try {
                 var clone = response.clone();
@@ -209,7 +220,7 @@ _CAPTURE_SCRIPT = r"""
                     _push({
                         seq: ++window.__actionId,
                         type: 'api_response',
-                        linkedToAction: lastAction.seq,
+                        linkedToAction: linkedAction.seq,
                         requestMethod: opts.method || 'GET',
                         requestUrl: url,
                         requestBody: opts.body ? (opts.body||'').toString().slice(0,2000) : null,
@@ -230,7 +241,7 @@ _CAPTURE_SCRIPT = r"""
             _push({
                 seq: ++window.__actionId,
                 type: 'api_response',
-                linkedToAction: lastAction ? lastAction.seq : 0,
+                linkedToAction: linkedAction ? linkedAction.seq : 0,
                 requestMethod: opts.method || 'GET',
                 requestUrl: url,
                 requestBody: opts.body ? (opts.body||'').toString().slice(0,2000) : null,
@@ -284,9 +295,9 @@ _PROMPT_SCRIPT = r"""
         var pageUrl = _escH((action.pageUrl||'').slice(0,80));
         var badgeColor = action.type==='click'?'#e94560':action.type==='submit'?'#f5a623':'#4a90d9';
 
-        return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Sign Action #'+action.seq+'</title><style>'
+        return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Sign Action</title><style>'
             +'*{margin:0;padding:0;box-sizing:border-box}'
-            +'body{font:14px/1.5 sans-serif;background:#1a1a2e;color:#e0e0e0;padding:24px 28px;min-width:420px;max-width:520px}'
+            +'body{font:14px/1.5 sans-serif;background:#1a1a2e;color:#e0e0e0;padding:24px 28px;width:460px}'
             +'.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}'
             +'.title{color:#e94560;font-weight:bold;font-size:16px}'
             +'.badge{color:#fff;border-radius:4px;padding:2px 10px;font-size:12px;font-weight:600}'
@@ -301,7 +312,7 @@ _PROMPT_SCRIPT = r"""
             +'.btn-skip{padding:8px 16px;border:1px solid #333;border-radius:6px;background:transparent;color:#888;cursor:pointer;font-size:13px}'
             +'.btn-ok{padding:8px 20px;border:none;border-radius:6px;background:#e94560;color:#fff;cursor:pointer;font-weight:600;font-size:13px}'
             +'</style></head><body>'
-            +'<div class="header"><div class="title">&#x270D;&#xFE0F; Sign Action #'+action.seq+'</div>'
+            +'<div class="header"><div class="title">&#x270D;&#xFE0F; Sign Action</div>'
             +'<span class="badge" style="background:'+badgeColor+'">'+actionTypeLabel+'</span></div>'
             +'<div class="info"><label>Element: <span>'+elementInfo+'</span></label>'
             +(pageUrl?'<label class="url">URL: <span>'+pageUrl+'</span></label>':'')
@@ -363,9 +374,8 @@ _PROMPT_SCRIPT = r"""
     function _openSigner(action, onConfirm) {
         _closePopup();
 
-        /* Open popup synchronously (within user gesture — popup blockers allow it).
-           Size and position: centered-ish, visible next to main window. */
-        var w = 500, h = 420;
+        /* Open popup with minimal initial size; auto-resize after content renders. */
+        var w = 480, h = 380;
         var left = Math.max(0, (screen.width - w) / 2);
         var top = Math.max(0, (screen.height - h) / 3);
 
@@ -388,14 +398,16 @@ _PROMPT_SCRIPT = r"""
         doc.write(_buildSignerHTML(action));
         doc.close();
 
-        /* Auto-size popup to fit content */
-        try {
-            var body = doc.body;
-            var html = doc.documentElement;
-            var cw = Math.max(body.scrollWidth, body.offsetWidth, html.clientWidth);
-            var ch = Math.max(body.scrollHeight, body.offsetHeight, html.clientHeight);
-            _popup.resizeTo(cw + 16, ch + 16);
-        } catch(ignored) {}
+        /* Auto-size popup to fit content (after render) */
+        setTimeout(function() {
+            try {
+                var b = _popup.document.body;
+                var h = _popup.document.documentElement;
+                var cw = Math.max(b.scrollWidth, b.offsetWidth, h.clientWidth);
+                var ch = Math.max(b.scrollHeight, b.offsetHeight, h.clientHeight);
+                _popup.resizeTo(Math.max(cw + 16, 460), Math.max(ch + 16, 340));
+            } catch(ignored) {}
+        }, 10);
 
         /* Focus the popup */
         try { _popup.focus(); } catch(ignored) {}
@@ -440,8 +452,14 @@ _PROMPT_SCRIPT = r"""
             }
             _origOnAction(action);
 
+            /* Send updated action (with descriptions) to Python — replaces draft by seq.
+               If skipped, send action with skipped flag so Python can filter it out. */
             if (typeof window.__python_recorder_on_action === 'function') {
                 if (desc1 !== '' || desc2 !== '') {
+                    try { window.__python_recorder_on_action(JSON.stringify(action)); } catch(ignored) {}
+                } else {
+                    /* User skipped — mark as skipped so Python handler can remove it */
+                    action.skipped = true;
                     try { window.__python_recorder_on_action(JSON.stringify(action)); } catch(ignored) {}
                 }
             }

@@ -4,11 +4,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import get_db
 from src.proxy.service import resolve_key, resolve_key_for_provider
-from src.proxy.transformer import proxy_request, get_available_models, get_all_models
+from src.proxy.transformer import (
+    proxy_request,
+    get_available_models,
+    get_all_models_from_configs,
+)
 
 """
-OpenAI-compatible router with multimodal provider support.
-Proxies requests through a provider adapter (BaseProviderAdapter).
+OpenAI-compatible router with config-driven provider support.
+Proxies requests through ProviderConfig (YAML) + adapter.
 """
 
 router = APIRouter()
@@ -46,11 +50,11 @@ async def audio_transcriptions(request: Request, db: AsyncSession = Depends(get_
 
 async def _proxy_openai(request: Request, db: AsyncSession, openai_path: str):
     key_value = _extract_bearer(request)
-    template, cookie_profile, _ = await resolve_key(db, key_value)
+    config, cookie_profile, _ = await resolve_key(db, key_value)
     body = await request.json()
 
     result = await proxy_request(
-        template=template,
+        config=config,
         cookie_profile=cookie_profile,
         body=body,
         openai_path=openai_path,
@@ -74,57 +78,57 @@ async def _proxy_openai(request: Request, db: AsyncSession, openai_path: str):
 async def list_models(request: Request, db: AsyncSession = Depends(get_db)):
     key_value = _extract_bearer(request)
     await resolve_key(db, key_value)
-    models = await get_all_models(db)
+    models = await get_all_models_from_configs()
     return {"object": "list", "data": models}
 
 
 @router.get("/v1/{provider}/models")
 async def list_provider_models(
-        provider: str, request: Request, db: AsyncSession = Depends(get_db),
+    provider: str, request: Request, db: AsyncSession = Depends(get_db),
 ):
     key_value = _extract_bearer(request)
-    template, _, _ = await resolve_key_for_provider(db, key_value, provider)
-    models = await get_available_models(template)
+    config, _, _ = await resolve_key_for_provider(db, key_value, provider)
+    models = await get_available_models(config)
     return {"object": "list", "data": models}
 
 
 @router.post("/v1/{provider}/chat/completions")
 async def provider_chat_completions(
-        provider: str, request: Request, db: AsyncSession = Depends(get_db),
+    provider: str, request: Request, db: AsyncSession = Depends(get_db),
 ):
     return await _provider_proxy(request, db, provider, "/v1/chat/completions")
 
 
 @router.post("/v1/{provider}/images/generations")
 async def provider_image_generations(
-        provider: str, request: Request, db: AsyncSession = Depends(get_db),
+    provider: str, request: Request, db: AsyncSession = Depends(get_db),
 ):
     return await _provider_proxy(request, db, provider, "/v1/images/generations")
 
 
 @router.post("/v1/{provider}/audio/speech")
 async def provider_audio_speech(
-        provider: str, request: Request, db: AsyncSession = Depends(get_db),
+    provider: str, request: Request, db: AsyncSession = Depends(get_db),
 ):
     return await _provider_proxy(request, db, provider, "/v1/audio/speech")
 
 
 @router.post("/v1/{provider}/audio/transcriptions")
 async def provider_audio_transcriptions(
-        provider: str, request: Request, db: AsyncSession = Depends(get_db),
+    provider: str, request: Request, db: AsyncSession = Depends(get_db),
 ):
     return await _provider_proxy(request, db, provider, "/v1/audio/transcriptions")
 
 
 async def _provider_proxy(
-        request: Request, db: AsyncSession, provider: str, openai_path: str,
+    request: Request, db: AsyncSession, provider: str, openai_path: str,
 ):
     key_value = _extract_bearer(request)
-    template, cookie_profile, _ = await resolve_key_for_provider(db, key_value, provider)
+    config, cookie_profile, _ = await resolve_key_for_provider(db, key_value, provider)
     body = await request.json()
 
     result = await proxy_request(
-        template=template,
+        config=config,
         cookie_profile=cookie_profile,
         body=body,
         openai_path=openai_path,

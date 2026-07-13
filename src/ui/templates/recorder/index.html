@@ -83,6 +83,7 @@
             </td>
             <td>
                 <button class="btn btn-sm" onclick="viewRecording('{{ r.id }}')">View</button>
+                <button class="btn btn-sm" onclick="exportRecording('{{ r.id }}')">Export</button>
             </td>
         </tr>
         {% endfor %}
@@ -177,8 +178,51 @@
             if (a.response_body) html += '<div style="margin-top:8px;"><strong>Body:</strong>' + _fmt(a.response_body) + '</div>';
         }
 
-        html += '<div class="modal-actions"><button class="btn" onclick="document.getElementById(\'modal\').innerHTML = _savedRecordingView">Back</button>';
+        /* Additional API responses (e.g. send after send-site) */
+        var extraApis = a.action_context?.api_responses;
+        if (extraApis && extraApis.length > 0) {
+            html += '<div class="section-divider" style="margin:16px 0 12px;">Additional Requests</div>';
+            extraApis.forEach(function(api, idx) {
+                html += '<div style="margin:8px 0;padding:8px;background:var(--bg-secondary);border-radius:6px;">';
+                html += '<div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:4px;">#' + (idx+1) + ' — <span class="tag">' + _esc(api.requestMethod || 'GET') + '</span> ' + _esc(api.requestUrl || '') + '</div>';
+                if (api.requestHeaders) html += '<div style="margin-top:4px;"><strong>Headers:</strong>' + _fmt(api.requestHeaders) + '</div>';
+                if (api.requestBody) html += '<div style="margin-top:4px;"><strong>Body:</strong>' + _fmt(api.requestBody) + '</div>';
+                if (api.responseStatus) {
+                    html += '<div style="margin-top:4px;"><strong>Status:</strong> <span class="tag tag-' + (api.responseStatus < 400 ? 'success' : 'warning') + '">' + api.responseStatus + '</span></div>';
+                }
+                if (api.responseHeaders) html += '<div style="margin-top:4px;"><strong>Response Headers:</strong>' + _fmt(api.responseHeaders) + '</div>';
+                if (api.responseBody) html += '<div style="margin-top:4px;"><strong>Response Body:</strong>' + _fmt(api.responseBody) + '</div>';
+                html += '</div>';
+            });
+        }
+
+        html += '<div class="modal-actions"><button class="btn" onclick="showRecordingList()">Back</button>';
         html += '<button class="btn" onclick="this.closest(\'.modal-overlay\').remove()">Close</button></div></div></div>';
+        el.innerHTML = html;
+    }
+
+    function showRecordingList() {
+        const el = document.getElementById('modal');
+        if (!_actionsData) { el.innerHTML = ''; return; }
+        let html = '<div class="modal-overlay"><div class="modal"><h2>Recording</h2>';
+        html += '<div style="margin-bottom:12px;font-size:12px;color:var(--text-secondary);">';
+        html += 'Actions: ' + _actionsData.length + '</div>';
+        if (_actionsData.length > 0) {
+            html += '<div class="table-wrapper"><table><thead><tr><th>#</th><th>Type</th><th>Description</th><th>Result</th><th>Element</th></tr></thead><tbody>';
+            _actionsData.forEach(function (a, i) {
+                html += '<tr class="clickable-row" onclick="showActionDetail(' + i + ')">';
+                html += '<td>' + a.sequence + '</td>';
+                html += '<td><span class="tag">' + a.action_type + '</span></td>';
+                html += '<td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + (a.user_description || '') + '">' + (a.user_description || '-') + '</td>';
+                html += '<td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + (a.result_description || '') + '">' + (a.result_description || '-') + '</td>';
+                html += '<td class="mono text-sm" style="max-width:120px;overflow:hidden;text-overflow:ellipsis;">' + (a.action_context?.elementText || '-') + '</td>';
+                html += '</tr>';
+            });
+            html += '</tbody></table></div>';
+        } else {
+            html += '<div class="empty-state"><p>No actions recorded.</p></div>';
+        }
+        html += '<div class="modal-actions"><button class="btn" onclick="this.closest(\'.modal-overlay\').remove()">Close</button></div></div></div>';
         el.innerHTML = html;
     }
 
@@ -187,38 +231,30 @@
             const resp = await fetch('/api/actions/recordings/' + id);
             const data = await resp.json();
             _actionsData = data.actions || [];
-
-            let html = '<div class="modal-overlay"><div class="modal"><h2>Recording: ' + id.slice(0, 8) + '</h2>';
-            html += '<div style="margin-bottom:12px;font-size:12px;color:var(--text-secondary);">';
-            html += 'Status: ' + data.status + ' | Actions: ' + _actionsData.length;
-            html += ' | Created: ' + new Date(data.created_at).toLocaleString();
-            html += '</div>';
-            if (_actionsData.length > 0) {
-                html += '<div class="table-wrapper"><table><thead><tr><th>#</th><th>Type</th><th>Description</th><th>Result</th><th>Element</th></tr></thead><tbody>';
-                _actionsData.forEach(function (a, i) {
-                    html += '<tr class="clickable-row" onclick="showActionDetail(' + i + ')">';
-                    html += '<td>' + a.sequence + '</td>';
-                    html += '<td><span class="tag">' + a.action_type + '</span></td>';
-                    html += '<td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + (a.user_description || '') + '">' + (a.user_description || '-') + '</td>';
-                    html += '<td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + (a.result_description || '') + '">' + (a.result_description || '-') + '</td>';
-                    html += '<td class="mono text-sm" style="max-width:120px;overflow:hidden;text-overflow:ellipsis;">' + (a.action_context?.elementText || '-') + '</td>';
-                    html += '</tr>';
-                });
-                html += '</tbody></table></div>';
-            } else {
-                html += '<div class="empty-state"><p>No actions recorded.</p></div>';
-            }
-            html += '<div class="modal-actions"><button class="btn" onclick="this.closest(\'.modal-overlay\').remove()">Close</button></div></div></div>';
-            document.getElementById('modal').innerHTML = html;
+            showRecordingList();
         } catch (e) {
             showToast('Failed to load recording', 'error');
+        }
+    }
+
+    async function exportRecording(id) {
+        try {
+            const url = '/api/actions/recordings/' + id + '/export';
+            const resp = await fetch(url, { method: 'POST' });
+            const data = await resp.json();
+            if (resp.ok) {
+                showToast('Exported to: ' + data.filepath, 'success');
+            } else {
+                showToast('Export failed: ' + (data.detail || 'Unknown error'), 'error');
+            }
+        } catch (e) {
+            showToast('Export failed', 'error');
         }
     }
 
     function showActionDetail(idx) {
         const a = _actionsData[idx];
         if (!a) return;
-        _savedRecordingView = document.getElementById('modal').innerHTML;
         _showActionDetail(a);
     }
 </script>

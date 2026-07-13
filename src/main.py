@@ -18,14 +18,29 @@ from src.ui.router import router as ui_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Initialize DB and settings service on startup."""
+    """Initialize DB, settings, and clean up orphaned providers on startup."""
     await init_db()
     from src.core.database import async_session_factory
     from src.core.settings_service import get_settings_service
+    from src.core.models import WebsiteTemplate
+    from src.proxy.providers.registry import get_registry
+    from sqlalchemy import select
 
     svc = get_settings_service()
     async with async_session_factory() as db:
         await svc.reload(db)
+
+        # Clean up orphaned providers: if a YAML config was removed,
+        # FK cascade removes associated cookies, keys, and recordings.
+        registry = get_registry()
+        known_ids = {p["id"] for p in registry.list_providers()}
+        result = await db.execute(select(WebsiteTemplate))
+        orphans = [t for t in result.scalars().all() if t.name not in known_ids]
+        for t in orphans:
+            print(f"  🗑️  Cleaning orphaned: {t.name}")
+            await db.delete(t)
+        if orphans:
+            await db.commit()
 
     yield
 
@@ -68,7 +83,7 @@ async def validation_exception_handler(request, exc: RequestValidationError):
         else:
             clean = msg.replace("Value error, ", "").replace("Input should be ", "")
             messages.append(clean)
-    text = ". ".join(messages) if messages else "Validation error"
+    text = "; ".join(messages) if messages else "Validation error"
     return JSONResponse(status_code=422, content={"detail": text})
 
 

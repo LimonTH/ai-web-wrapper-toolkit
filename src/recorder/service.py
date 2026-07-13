@@ -10,7 +10,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from src.core.config import settings
 from src.core.exceptions import safe_json_parse
 from src.core.models import ActionRecording, CookieProfile, RecordedAction, WebsiteTemplate
 from src.recorder.recorder import record_actions
@@ -34,8 +33,12 @@ async def _resolve_template(db: AsyncSession, template_id_or_name: str) -> Websi
 
     from src.proxy.providers.registry import get_registry
 
-    dummy = type("DummyTemplate", (), {"name": template_id_or_name, "base_url": "", "endpoints": []})()
-    adapter = get_registry().get_adapter(dummy)
+    adapter = get_registry().get_adapter_by_template(
+        type("DummyTemplate", (), {
+            "name": template_id_or_name,
+            "base_url": "",
+        })()
+    )
     capabilities = sorted(adapter.supports) if adapter.supports else []
     url_pattern = getattr(adapter, "url_pattern", "") or ""
     base_url = f"https://{url_pattern}" if url_pattern else ""
@@ -93,17 +96,26 @@ async def start_recording(
         with_prompts=with_prompts,
     )
 
-    api_by_action_seq: dict[int, dict[str, Any]] = {}
+    # Collect ALL API responses per action sequence (not just the first one)
+    api_by_action_seq: dict[int, list[dict[str, Any]]] = {}
     for action in raw_actions:
         if action.get("type") == "api_response" and "linkedToAction" in action:
             linked_seq = action["linkedToAction"]
-            if linked_seq not in api_by_action_seq:
-                api_by_action_seq[linked_seq] = action
+            api_by_action_seq.setdefault(linked_seq, []).append(action)
 
     saved_count = 0
     for i, action in enumerate(raw_actions):
         if action.get("type") == "api_response":
             continue
+
+        action_ctx: dict[str, Any] = {
+            "element": action.get("element"),
+            "elementText": action.get("elementText"),
+            "href": action.get("href"),
+            "selector": action.get("selector"),
+            "formData": action.get("formData"),
+            "inputValue": action.get("inputValue"),
+        }
 
         recorded = RecordedAction(
             recording_id=recording.id,
@@ -111,44 +123,61 @@ async def start_recording(
             action_type=action.get("type", "unknown"),
             user_description=action.get("userDescription") or action.get("user_description"),
             result_description=action.get("resultDescription") or action.get("result_description"),
-            action_context={
-                "element": action.get("element"),
-                "elementText": action.get("elementText"),
-                "href": action.get("href"),
-                "selector": action.get("selector"),
-                "formData": action.get("formData"),
-                "inputValue": action.get("inputValue"),
-            },
+            action_context=action_ctx,
             page_url=action.get("pageUrl"),
         )
         db.add(recorded)
         saved_count += 1
 
-        linked_api = api_by_action_seq.get(action.get("seq"))
-        if linked_api:
-            recorded.request_method = linked_api.get("requestMethod")
-            recorded.request_url = linked_api.get("requestUrl")
-            recorded.request_headers = linked_api.get("requestHeaders")
-            recorded.request_body = _try_parse_json(linked_api.get("requestBody"))
-            recorded.response_status = linked_api.get("responseStatus")
-            recorded.response_headers = linked_api.get("responseHeaders")
-            recorded.response_body = _try_parse_json(linked_api.get("responseBody"))
+        linked_apis = api_by_action_seq.get(action.get("seq"))
+        if linked_apis:
+            first = linked_apis[0]
+            recorded.request_method = first.get("requestMethod")
+            recorded.request_url = first.get("requestUrl")
+            recorded.request_headers = first.get("requestHeaders")
+            recorded.request_body = _try_parse_json(first.get("requestBody"))
+            recorded.response_status = first.get("responseStatus")
+            recorded.response_headers = first.get("responseHeaders")
+            recorded.response_body = _try_parse_json(first.get("responseBody"))
+
+            if len(linked_apis) > 1:
+                extra = []
+                for extra_api in linked_apis[1:]:
+                    extra.append({
+                        "requestMethod": extra_api.get("requestMethod"),
+                        "requestUrl": extra_api.get("requestUrl"),
+                        "requestHeaders": extra_api.get("requestHeaders"),
+                        "requestBody": _try_parse_json(extra_api.get("requestBody")),
+                        "responseStatus": extra_api.get("responseStatus"),
+                        "responseHeaders": extra_api.get("responseHeaders"),
+                        "responseBody": extra_api.get("responseBody"),
+                    })
+                if action_ctx is None:
+                    action_ctx = {}
+                action_ctx["api_responses"] = extra
 
     recording.status = "completed"
     recording.completed_at = datetime.now(timezone.utc)
     await db.flush()
 
-    export_path = _export_recording(recording, raw_actions, template.name)
+    # Auto-export anonymized provider config to data/providers/{name}.yaml
+    try:
+        from src.providers.seed import export_provider_config
+        export_provider_config(
+            template_name=template.name,
+            base_url=template.base_url,
+            raw_actions=raw_actions,
+        )
+    except Exception as exc:
+        print(f"  ⚠️  Provider config export failed: {exc}")
 
     print(f"💾 Saved {saved_count} actions → recording {recording.id}")
-    print(f"📄 Exported to {export_path}")
 
     return {
         "recording_id": recording.id,
         "template_id": template_id,
         "actions_count": saved_count,
         "status": "completed",
-        "export_path": str(export_path),
     }
 
 
@@ -160,28 +189,49 @@ def _try_parse_json(value: Any) -> Any:
     return value
 
 
-def _export_recording(
-        recording: ActionRecording,
-        raw_actions: list[dict[str, Any]],
-        template_name: str,
-) -> Path:
-    """Exports recording to a JSON file for manual analysis."""
-    recordings_dir = Path(settings.project_root) / "data" / "recordings"
-    recordings_dir.mkdir(parents=True, exist_ok=True)
+async def export_recording_json(recording: ActionRecording) -> str:
+    """
+    Export recording to JSON file in data/recording/.
+    Returns the file path.
+    """
+    export_dir = Path("data/recording")
+    export_dir.mkdir(parents=True, exist_ok=True)
 
-    export = {
+    filename = f"recording_{recording.id}.json"
+    filepath = export_dir / filename
+
+    actions_data = []
+    for action in recording.actions:
+        actions_data.append({
+            "sequence": action.sequence,
+            "action_type": action.action_type,
+            "user_description": action.user_description,
+            "result_description": action.result_description,
+            "action_context": action.action_context,
+            "page_url": action.page_url,
+            "request_method": action.request_method,
+            "request_url": action.request_url,
+            "request_headers": action.request_headers,
+            "request_body": action.request_body,
+            "response_status": action.response_status,
+            "response_headers": action.response_headers,
+            "response_body": action.response_body,
+        })
+
+    export_data = {
         "recording_id": recording.id,
-        "template": template_name,
+        "template_id": recording.template_id,
+        "status": recording.status,
         "start_url": recording.start_url,
-        "created_at": recording.created_at.isoformat(),
+        "created_at": recording.created_at.isoformat() if recording.created_at else None,
         "completed_at": recording.completed_at.isoformat() if recording.completed_at else None,
-        "actions_count": len(raw_actions),
-        "actions": raw_actions,
+        "actions": actions_data,
     }
 
-    file_path = recordings_dir / f"{recording.id}.json"
-    file_path.write_text(json.dumps(export, indent=2, default=str, ensure_ascii=False))
-    return file_path
+    with open(filepath, "w", encoding="utf-8") as f:
+        json.dump(export_data, f, indent=2, ensure_ascii=False)
+
+    return str(filepath)
 
 
 async def get_recording(db: AsyncSession, recording_id: str) -> ActionRecording:

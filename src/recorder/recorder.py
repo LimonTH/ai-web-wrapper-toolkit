@@ -65,6 +65,15 @@ async def record_actions(
             try:
                 action = json.loads(action_json)
                 seq = action.get("seq")
+
+                # Handle skipped actions — remove from captured list
+                if action.get("skipped") is True and seq is not None:
+                    for i, existing in enumerate(captured):
+                        if existing.get("seq") == seq:
+                            captured.pop(i)
+                            return
+                    return
+
                 if seq is not None:
                     # Replace existing action with same seq (updated with descriptions)
                     for i, existing in enumerate(captured):

@@ -1,0 +1,27 @@
+provider_id: v0
+name: V0 by Vercel
+base_url: https://v0.app
+
+endpoints:
+  chat:
+    path: /chat/api/send
+    method: POST
+    headers:
+      content-type: application/json
+    body:
+      messages: ${messages}
+      model: ${body.model}
+      stream: ${body.stream}
+    extract:
+      content:
+        - "$.choices[0].message.content"
+        - "$.text"
+        - "$.content"
+      stream: "$.choices[0].delta.content"
+
+  chat_init:
+    path: /chat/api/send-site
+    method: POST
+    body:
+      action: AutoCapture
+      route: /${project_id}

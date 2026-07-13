@@ -28,13 +28,14 @@ async def get_template_by_id(db: AsyncSession, template_id: str) -> WebsiteTempl
 
 
 async def create_template(db: AsyncSession, data: WebsiteTemplateCreate) -> WebsiteTemplate:
-    dummy_template = type("DummyTemplate", (), {
-        "name": data.name,
-        "base_url": data.base_url,
-        "endpoints": [],
-    })()
     registry = get_registry()
-    adapter = registry.get_adapter(dummy_template)
+    # Try to get adapter by provider name, fall back to generic
+    adapter = registry.get_adapter_by_template(
+        type("DummyTemplate", (), {
+            "name": data.name,
+            "base_url": data.base_url,
+        })()
+    )
     capabilities = sorted(adapter.supports) if adapter.supports else []
 
     template = WebsiteTemplate(
@@ -156,9 +157,13 @@ async def _resolve_template(db: AsyncSession, template_id_or_name: str) -> Websi
         return template
 
     from src.proxy.providers.registry import get_registry
-    dummy = type("DummyTemplate", (), {"name": template_id_or_name, "base_url": "", "endpoints": []})()
     registry = get_registry()
-    adapter = registry.get_adapter(dummy)
+    adapter = registry.get_adapter_by_template(
+        type("DummyTemplate", (), {
+            "name": template_id_or_name,
+            "base_url": "",
+        })()
+    )
     capabilities = sorted(adapter.supports) if adapter.supports else []
 
     url_pattern = getattr(adapter, "url_pattern", "") or ""
@@ -189,7 +194,7 @@ async def create_virtual_key(db: AsyncSession, data: VirtualApiKeyCreate) -> Vir
     )
 
     api_key = VirtualApiKey(
-        template_id=data.template_id,
+        template_id=template.id,
         cookie_profile_id=data.cookie_profile_id,
         name=data.name,
         key_value=key_data["key_value"],

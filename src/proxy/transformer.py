@@ -5,14 +5,12 @@ from typing import Any, AsyncGenerator
 
 import httpx
 from fastapi import HTTPException, status
-from sqlalchemy import select
-from sqlalchemy.orm import selectinload
 
-from src.core.models import WebsiteTemplate, CookieProfile
+from src.providers.config import ProviderConfig
 from src.proxy.providers.registry import get_registry
 
 """
-Agent Transformer — OpenAI-compatible proxy with multimodal provider adapters.
+Agent Transformer — OpenAI-compatible proxy with config-driven provider adapters.
 Accepts requests in OpenAI format and proxies them to the real web-wrapper API.
 """
 
@@ -25,10 +23,10 @@ _ENDPOINT_BLOCK_MAP: dict[str, str] = {
 
 
 async def proxy_request(
-        template: WebsiteTemplate,
-        cookie_profile: CookieProfile | None,
-        body: dict[str, Any],
-        openai_path: str,
+    config: ProviderConfig,
+    cookie_profile: Any | None,
+    body: dict[str, Any],
+    openai_path: str,
 ) -> dict[str, Any] | AsyncGenerator[str, None]:
     """
     Proxies the request to the web-wrapper via the provider adapter.
@@ -37,7 +35,7 @@ async def proxy_request(
     block = _ENDPOINT_BLOCK_MAP.get(openai_path, "chat")
 
     registry = get_registry()
-    adapter = registry.get_adapter(template)
+    adapter = registry.get_adapter(config.provider_id)
 
     if block not in adapter.supports:
         supported = ", ".join(sorted(adapter.supports))
@@ -47,24 +45,22 @@ async def proxy_request(
                    f"Supported: {supported}",
         )
 
-    method = "POST"
-    endpoint = adapter.get_endpoint(template, block=block, method=method)
-    if not endpoint:
+    # Build URL from config
+    url = config.get_endpoint_url(block)
+    if not url:
         raise HTTPException(
             status_code=status.HTTP_501_NOT_IMPLEMENTED,
-            detail=f"Endpoint for '{block}' not configured for template '{template.name}'. "
-                   f"Add an endpoint with functional_block='{block}' first.",
+            detail=f"Endpoint '{block}' not configured for provider '{config.provider_id}'. "
+                   f"Add it to data/providers/{config.provider_id}.yaml",
         )
 
-    url = f"{template.base_url.rstrip('/')}{endpoint.path}"
     stream = body.get("stream", False)
-
-    headers = adapter.get_headers(template, stream=stream, block=block)
-    if cookie_profile and cookie_profile.extra_headers:
+    headers = adapter.get_headers(block, stream=stream)
+    if cookie_profile and getattr(cookie_profile, "extra_headers", None):
         headers.update(cookie_profile.extra_headers)
 
-    payload = adapter.build_payload(endpoint, body, block=block)
-    model_id = body.get("model", adapter.get_model_id(template))
+    payload = adapter.build_payload(block, body, block=block)
+    model_id = body.get("model", adapter.get_model_id(config.provider_id))
 
     if stream:
         return _proxy_stream(
@@ -80,9 +76,9 @@ async def proxy_request(
 
 
 async def _proxy_sync(
-        client: httpx.AsyncClient,
-        url: str, headers: dict[str, str], payload: dict[str, Any],
-        model: str, adapter, block: str = "chat",
+    client: httpx.AsyncClient,
+    url: str, headers: dict[str, str], payload: dict[str, Any],
+    model: str, adapter, block: str = "chat",
 ) -> dict[str, Any]:
     response = await client.post(url, headers=headers, json=payload)
 
@@ -108,8 +104,8 @@ async def _proxy_sync(
 
 
 async def _proxy_stream(
-        url: str, headers: dict[str, str], payload: dict[str, Any],
-        model: str, adapter, block: str = "chat",
+    url: str, headers: dict[str, str], payload: dict[str, Any],
+    model: str, adapter, block: str = "chat",
 ) -> AsyncGenerator[str, None]:
     async with httpx.AsyncClient(verify=True, timeout=httpx.Timeout(30.0, connect=10.0)) as client:
         async with client.stream("POST", url, headers=headers, json=payload) as response:
@@ -139,7 +135,7 @@ async def _proxy_stream(
 
 
 def _build_openai_response(
-        model: str, content: str, finish_reason: str = "stop",
+    model: str, content: str, finish_reason: str = "stop",
 ) -> dict[str, Any]:
     return {
         "id": f"chatcmpl-{uuid.uuid4().hex[:12]}",
@@ -156,7 +152,7 @@ def _build_openai_response(
 
 
 def _build_openai_image_response(
-        model: str, data: Any, adapter, block: str,
+    model: str, data: Any, adapter, block: str,
 ) -> dict[str, Any]:
     content = adapter.extract_content(data, block=block)
     return {
@@ -166,7 +162,7 @@ def _build_openai_image_response(
 
 
 def _build_openai_chunk(
-        model: str, content: str | None = None, finish_reason: str | None = None,
+    model: str, content: str | None = None, finish_reason: str | None = None,
 ) -> str:
     delta: dict[str, Any] = {}
     if content is not None:
@@ -184,37 +180,38 @@ def _build_openai_chunk(
     return f"data: {json.dumps(chunk)}\n\n"
 
 
-async def get_available_models(template: WebsiteTemplate) -> list[dict[str, str]]:
-    """Returns models for the template via the adapter."""
-    registry = get_registry()
-    adapter = registry.get_adapter(template)
-    model_ids = adapter.get_model_ids(template)
-    now = int(time.time())
+def get_model_id(config: ProviderConfig) -> str:
+    return config.provider_id.lower().replace(" ", "-").replace("_", "-")
 
+
+def get_model_ids(config: ProviderConfig) -> list[str]:
+    base_id = get_model_id(config)
+    supports = config.supports or {"chat"}
+    return [f"{base_id}/{block}" for block in sorted(supports)]
+
+
+async def get_available_models(config: ProviderConfig) -> list[dict[str, str]]:
+    """Returns models for the provider config."""
+    model_ids = get_model_ids(config)
+    now = int(time.time())
     return [
         {
             "id": mid,
             "object": "model",
             "created": now,
-            "owned_by": template.base_url,
+            "owned_by": config.base_url,
         }
         for mid in model_ids
     ]
 
 
-async def get_all_models(db) -> list[dict[str, str]]:
-    """Models of all active templates."""
+async def get_all_models_from_configs() -> list[dict[str, str]]:
+    """Models of all known provider configs."""
+    from src.providers.config import load_all_provider_configs
 
-    result = await db.execute(
-        select(WebsiteTemplate)
-        .options(selectinload(WebsiteTemplate.endpoints))
-        .where(WebsiteTemplate.is_active == True)
-    )
-    templates = result.scalars().all()
-
+    configs = load_all_provider_configs()
     all_models: list[dict[str, str]] = []
-    for t in templates:
-        models = await get_available_models(t)
+    for config in configs.values():
+        models = await get_available_models(config)
         all_models.extend(models)
-
     return all_models

@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8000
 
+    jwt_secret_key: str = ""
+    jwt_algorithm: str = "HS256"
+
     model_config = {"env_prefix": "AWT_", "env_file": ".env"}
 
     @property

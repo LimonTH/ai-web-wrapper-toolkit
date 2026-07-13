@@ -39,7 +39,7 @@
         <thead>
         <tr>
             <th>Name</th>
-            <th>Template</th>
+            <th>Provider</th>
             <th>Cookies</th>
             <th>Status</th>
             <th>Last Used</th>
@@ -116,12 +116,7 @@
         </svg>
     </div>
     <p>No cookie profiles configured.</p>
-    <button class="btn btn-primary" style="margin-top:14px;"
-            hx-get="/ui/cookies/new"
-            hx-target="#modal"
-            hx-swap="innerHTML">
-        Create first profile
-    </button>
+    <p class="text-xs text-secondary" style="margin-top:4px;">Create a provider and browser login to get started.</p>
 </div>
 {% endif %}
 
