@@ -30,6 +30,10 @@ async def proxy_request(
 ) -> dict[str, Any] | AsyncGenerator[str, None]:
     """
     Proxies the request to the web-wrapper via the provider adapter.
+    Supports multi-step session lifecycle:
+      1. adapter.prepare_session(body)  — once per conversation
+      2. adapter.build_payload(...)     — every request
+      3. adapter.extract_meta(...)      — every response
     Returns a dict for sync responses or an AsyncGenerator for streaming.
     """
     block = _ENDPOINT_BLOCK_MAP.get(openai_path, "chat")
@@ -56,37 +60,69 @@ async def proxy_request(
 
     stream = body.get("stream", False)
     headers = adapter.get_headers(block, stream=stream)
-    if cookie_profile and getattr(cookie_profile, "extra_headers", None):
-        headers.update(cookie_profile.extra_headers)
+
+    # ── Attach cookies from cookie profile ─────────────────────────
+    if cookie_profile:
+        if getattr(cookie_profile, "extra_headers", None):
+            headers.update(cookie_profile.extra_headers)
+        # Convert Playwright-format cookies to Cookie header if not already set
+        cookies_list = getattr(cookie_profile, "cookies", None)
+        if cookies_list and "Cookie" not in headers:
+            cookie_str = "; ".join(
+                f"{c['name']}={c['value']}"
+                for c in cookies_list
+                if isinstance(c, dict) and "name" in c and "value" in c
+            )
+            if cookie_str:
+                headers["Cookie"] = cookie_str
+
+    # ── Multi-step session init (once per conversation) ───────────
+    # NOTE: called AFTER headers are built, so cookies are available
+    if not adapter.session:
+        session_vars = await adapter.prepare_session(body, headers=headers)
+        adapter.session.update(session_vars)
 
     payload = adapter.build_payload(block, body, block=block)
     model_id = body.get("model", adapter.get_model_id(config.provider_id))
 
-    if stream:
-        return _proxy_stream(
-            url=url, headers=headers, payload=payload,
-            model=model_id, adapter=adapter, block=block,
-        )
-    else:
-        async with httpx.AsyncClient(verify=True, timeout=httpx.Timeout(30.0, connect=10.0)) as client:
-            return await _proxy_sync(
-                client=client, url=url, headers=headers, payload=payload,
-                model=model_id, adapter=adapter, block=block,
+    async with httpx.AsyncClient(verify=True, timeout=httpx.Timeout(30.0, connect=10.0)) as client:
+        response = await client.post(url, headers=headers, json=payload)
+
+        if response.status_code >= 400:
+            error_text = response.text[:1000]
+            raise HTTPException(
+                status_code=response.status_code,
+                detail=f"Upstream API error ({url}): {error_text}",
             )
+
+        # ── Extract meta from response headers ──────────────────
+        meta = adapter.extract_meta(dict(response.headers), None)
+        adapter.session.update(meta)
+
+        if stream:
+            return _proxy_stream(
+                response=response, model=model_id, adapter=adapter, block=block,
+            )
+
+        return await _proxy_sync(
+            response=response, model=model_id, adapter=adapter, block=block,
+        )
 
 
 async def _proxy_sync(
-    client: httpx.AsyncClient,
-    url: str, headers: dict[str, str], payload: dict[str, Any],
+    response: httpx.Response,
     model: str, adapter, block: str = "chat",
 ) -> dict[str, Any]:
-    response = await client.post(url, headers=headers, json=payload)
-
-    if response.status_code >= 400:
-        raise HTTPException(
-            status_code=response.status_code,
-            detail=f"Upstream API error: {response.text[:500]}",
-        )
+    # Detect RSC / custom text formats (v0 returns text/plain or text/x-component)
+    ctype = response.headers.get("content-type", "")
+    if "text/plain" in ctype or "text/x-component" in ctype:
+        # Full raw text — adapter.extract_content handles RSC decoding
+        content = adapter.extract_content(response.text, block=block)
+        if block == "image_gen":
+            return _build_openai_image_response(model=model, data=response.text, adapter=adapter, block=block)
+        if block == "tts":
+            return {"audio": content, "model": model}
+        return _build_openai_response(model=model, content=content)
 
     try:
         upstream_data = response.json()
@@ -104,34 +140,38 @@ async def _proxy_sync(
 
 
 async def _proxy_stream(
-    url: str, headers: dict[str, str], payload: dict[str, Any],
+    response: httpx.Response,
     model: str, adapter, block: str = "chat",
 ) -> AsyncGenerator[str, None]:
-    async with httpx.AsyncClient(verify=True, timeout=httpx.Timeout(30.0, connect=10.0)) as client:
-        async with client.stream("POST", url, headers=headers, json=payload) as response:
-            if response.status_code >= 400:
-                error_text = await response.aread()
-                yield f"data: {json.dumps({'error': error_text.decode()[:500]})}\n\n"
-                yield "data: [DONE]\n\n"
-                return
+    yield _build_openai_chunk(model=model, content="")
 
-            yield _build_openai_chunk(model=model, content="")
+    # Check if adapter overrides streaming (e.g. v0 with RSC)
+    # Use a flag to avoid calling hasattr on every line
+    adapter_owns_stream = hasattr(adapter, 'handle_stream') and callable(adapter.handle_stream)
+    if adapter_owns_stream:
+        async for chunk in adapter.handle_stream(response, model, block):
+            yield chunk
+        return
 
-            async for line in response.aiter_lines():
-                if not line.startswith("data:") and not line.startswith("{"):
-                    continue
+    async for line in response.aiter_lines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        # SSE data: prefix or JSON object/array start
+        if not stripped.startswith("data:") and not stripped.startswith("{") and not stripped.startswith("["):
+            continue
 
-                raw = line.removeprefix("data:").strip()
-                try:
-                    upstream_chunk = json.loads(raw)
-                    content = adapter.extract_stream_chunk(upstream_chunk, block=block)
-                    if content:
-                        yield _build_openai_chunk(model=model, content=content)
-                except json.JSONDecodeError:
-                    pass
+        raw = stripped.removeprefix("data:").strip()
+        try:
+            upstream_chunk = json.loads(raw)
+            content = adapter.extract_stream_chunk(upstream_chunk, block=block)
+            if content:
+                yield _build_openai_chunk(model=model, content=content)
+        except json.JSONDecodeError:
+            pass
 
-            yield _build_openai_chunk(model=model, finish_reason="stop")
-            yield "data: [DONE]\n\n"
+    yield _build_openai_chunk(model=model, finish_reason="stop")
+    yield "data: [DONE]\n\n"
 
 
 def _build_openai_response(
@@ -191,8 +231,13 @@ def get_model_ids(config: ProviderConfig) -> list[str]:
 
 
 async def get_available_models(config: ProviderConfig) -> list[dict[str, str]]:
-    """Returns models for the provider config."""
-    model_ids = get_model_ids(config)
+    """Returns models for the provider config — uses adapter if available."""
+    from src.proxy.providers.registry import get_registry
+
+    registry = get_registry()
+    adapter = registry.get_adapter(config.provider_id)
+    # Use adapter's get_model_ids() — it may return real model names (e.g. v0-max)
+    model_ids = adapter.get_model_ids(config.provider_id)
     now = int(time.time())
     return [
         {
@@ -206,12 +251,24 @@ async def get_available_models(config: ProviderConfig) -> list[dict[str, str]]:
 
 
 async def get_all_models_from_configs() -> list[dict[str, str]]:
-    """Models of all known provider configs."""
+    """Models of all known provider configs — uses adapters for real model names."""
     from src.providers.config import load_all_provider_configs
+    from src.proxy.providers.registry import get_registry
 
+    registry = get_registry()
     configs = load_all_provider_configs()
     all_models: list[dict[str, str]] = []
     for config in configs.values():
-        models = await get_available_models(config)
-        all_models.extend(models)
+        adapter = registry.get_adapter(config.provider_id)
+        model_ids = adapter.get_model_ids(config.provider_id)
+        now = int(time.time())
+        all_models.extend([
+            {
+                "id": mid,
+                "object": "model",
+                "created": now,
+                "owned_by": config.base_url,
+            }
+            for mid in model_ids
+        ])
     return all_models

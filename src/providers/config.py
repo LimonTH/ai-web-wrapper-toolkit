@@ -47,7 +47,10 @@ class ProviderConfig:
     # ── Body building ──────────────────────────────────────────────
 
     def build_body(
-        self, endpoint_key: str, openai_body: dict[str, Any]
+        self,
+        endpoint_key: str,
+        openai_body: dict[str, Any],
+        session: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
         Build request payload for the given endpoint from OpenAI body.
@@ -55,6 +58,7 @@ class ProviderConfig:
         Syntax in YAML body values:
         - ${body.field}    → openai_body.get("field")
         - ${messages}      → shorthand for ${body.messages}
+        - ${session.key}   → session.get("key")  (multi-step context)
         - /${project_id}   → static string with placeholder (kept as-is)
         - Everything else  → static value
         """
@@ -62,22 +66,29 @@ class ProviderConfig:
         if not ep:
             return {}
         body_template = ep.get("body", {})
-        return self._resolve_value(body_template, openai_body)
+        return self._resolve_value(body_template, openai_body, session or {})
 
-    def _resolve_value(self, template: Any, openai_body: dict[str, Any]) -> Any:
+    def _resolve_value(
+        self,
+        template: Any,
+        openai_body: dict[str, Any],
+        session: dict[str, Any],
+    ) -> Any:
         if isinstance(template, dict):
             return {
-                k: self._resolve_value(v, openai_body)
+                k: self._resolve_value(v, openai_body, session)
                 for k, v in template.items()
             }
         if isinstance(template, list):
-            return [self._resolve_value(item, openai_body) for item in template]
+            return [self._resolve_value(item, openai_body, session) for item in template]
         if isinstance(template, str):
             m = re.match(r"^\$\{(.+)\}$", template)
             if m:
                 expr = m.group(1).strip()
                 if expr.startswith("body."):
                     return openai_body.get(expr[5:])
+                if expr.startswith("session."):
+                    return session.get(expr[8:])
                 return openai_body.get(expr)
             return template
         return template
@@ -138,11 +149,11 @@ class ProviderConfig:
     ) -> dict[str, str]:
         """Get headers for the given endpoint, merged with safe defaults."""
         headers: dict[str, str] = {
-            "Content-Type": "application/json",
-            "Accept": (
+            "content-type": "application/json",
+            "accept": (
                 "text/event-stream" if stream else "application/json"
             ),
-            "User-Agent": (
+            "user-agent": (
                 "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
                 "(KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"
             ),
@@ -150,7 +161,8 @@ class ProviderConfig:
         ep = self.get_endpoint(endpoint_key)
         if ep:
             ep_headers = ep.get("headers", {})
-            headers.update(ep_headers)
+            # Normalize YAML header keys to lowercase to avoid duplicates
+            headers.update({k.lower(): v for k, v in ep_headers.items()})
         return headers
 
     # ── URL / method helpers ───────────────────────────────────────

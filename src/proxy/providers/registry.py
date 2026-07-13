@@ -57,7 +57,8 @@ class ProviderRegistry:
                         pid = getattr(obj, "provider_id", None)
                         if pid and pid not in self._adapters:
                             self._adapters[pid] = obj
-                            print(f"  🔌 Discovered adapter: {pid} ({obj.__name__})")
+                        if pid:
+                            print(f"  🔌 Adapter: {pid} ({obj.__name__})")
             except Exception:
                 pass
 

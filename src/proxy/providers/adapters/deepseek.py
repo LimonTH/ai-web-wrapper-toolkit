@@ -11,5 +11,5 @@ Minimal — all payload/extract logic lives in data/providers/{provider_id}.yaml
 class DeepSeekAdapter(BaseProviderAdapter):
     provider_id = "deepseek"
     provider_name = "DeepSeek"
-    url_pattern = "deepseek.com"
+    url_pattern = "chat.deepseek.com"
     supports = {"chat"}

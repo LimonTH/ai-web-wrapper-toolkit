@@ -19,6 +19,7 @@ class BaseProviderAdapter:
     - url_pattern: str  — URL substring for auto-mapping
     - supports: set[str] — which endpoint keys are supported
     - config: ProviderConfig | None — loaded from YAML
+    - session: dict — mutable session context (chatId, parentId, etc.)
     """
 
     provider_id: str = ""
@@ -26,6 +27,45 @@ class BaseProviderAdapter:
     url_pattern: str = ""
     supports: set[str] = {"chat"}
     config: ProviderConfig | None = None
+    # session is now instance-level (set in __init__), not a shared class variable
+
+    def __init__(self) -> None:
+        """Initialize adapter with a fresh per-instance session context."""
+        self.session: dict[str, Any] = {}
+
+    # ── Session lifecycle (multi-step providers) ────────────────────
+
+    async def prepare_session(
+        self,
+        body: dict[str, Any],
+        headers: dict[str, str] | None = None,
+    ) -> dict[str, Any]:
+        """
+        Initialize a session before the first request.
+        Called once per conversation. Return a dict of session vars
+        that will be merged into `self.session` and used by
+        `${session.*}` in YAML body templates.
+
+        `headers` contains the full HTTP headers including cookies
+        from the cookie profile — useful for adapters that need
+        to make auth-dependent API calls during session init.
+
+        Default: no-op, returns {}.
+        Override in adapters that need multi-step setup
+        (e.g. v0: create chat project first).
+        """
+        return {}
+
+    def extract_meta(self, response_headers: dict[str, str], response_body: Any) -> dict[str, Any]:
+        """
+        Extract session metadata from a response (headers + body).
+        Called after each proxy request. Returned dict is merged into
+        `self.session` so `${session.*}` references are updated.
+
+        Default: no-op, returns {}.
+        Override to capture e.g. parentId, nextUrl, tokens.
+        """
+        return {}
 
     # ── Config-driven defaults ─────────────────────────────────────
 
@@ -35,9 +75,9 @@ class BaseProviderAdapter:
         body: dict[str, Any],
         block: str = "chat",
     ) -> dict[str, Any]:
-        """Default: delegates to ProviderConfig.build_body()."""
+        """Default: delegates to ProviderConfig.build_body() with session context."""
         if self.config:
-            return self.config.build_body(endpoint_key, body)
+            return self.config.build_body(endpoint_key, body, session=self.session)
         return body
 
     def extract_content(
@@ -74,9 +114,9 @@ class BaseProviderAdapter:
         if self.config:
             return self.config.get_headers(endpoint_key, stream=stream)
         headers: dict[str, str] = {
-            "Content-Type": "application/json",
-            "Accept": "text/event-stream" if stream else "application/json",
-            "User-Agent": (
+            "content-type": "application/json",
+            "accept": "text/event-stream" if stream else "application/json",
+            "user-agent": (
                 "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
                 "(KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"
             ),

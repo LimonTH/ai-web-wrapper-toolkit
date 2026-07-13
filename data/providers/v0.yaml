@@ -4,24 +4,41 @@ base_url: https://v0.app
 
 endpoints:
   chat:
-    path: /chat/api/send
+    path: /chat/api/chat
     method: POST
     headers:
       content-type: application/json
+      referer: https://v0.app/
+      origin: https://v0.app
     body:
-      messages: ${messages}
-      model: ${body.model}
-      stream: ${body.stream}
+      messageContent:
+        version: 1
+        parts:
+          - type: mdx
+            content: ${session.last_user_message}
+        type: parts
+      messageId: ${session.message_id}
+      chatId: ${session.chat_id}
+      isNew: false
+      parentId: ${session.parent_id}
+      team: ${session.team}
+      modelConfiguration:
+        modelId: ${body.model}
+        imageGenerations: true
+        thinking: false
+      optimisticConnectedIntegrations: []
+      optimisticEnvVarKeys: []
+      suggestedActionsEnabled: true
+      mcpServers: []
+      permissionsMode: auto
+      chatCreationTime: ${session.chat_creation_time}
+      previewViewport:
+        mode: desktop
+        width: 960
+        height: 583
+        colorScheme: light
     extract:
       content:
-        - "$.choices[0].message.content"
         - "$.text"
-        - "$.content"
-      stream: "$.choices[0].delta.content"
-
-  chat_init:
-    path: /chat/api/send-site
-    method: POST
-    body:
-      action: AutoCapture
-      route: /${project_id}
+        - "$.choices[0].message.content"
+      stream: "$.text"

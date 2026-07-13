@@ -18,6 +18,8 @@ _CAPTURE_SCRIPT = r"""
     /* Deferred panel init — body may not exist when add_init_script runs */
     function _initPanel() {
         if (document.body) {
+            /* Restore count from sessionStorage (survives page refresh within tab) */
+            var savedCount = parseInt(sessionStorage.getItem('__recorderActionCount') || '0', 10);
             _panel = document.createElement('div');
             _panel.id = '__recorderPanel';
             _panel.innerHTML = '<div style="'
@@ -28,7 +30,7 @@ _CAPTURE_SCRIPT = r"""
                 + 'pointer-events:none;user-select:none;'
                 + '">'
                 + '<div style="color:#e94560;font-weight:bold;margin-bottom:4px;">&#x1F3AC; RECORDING</div>'
-                + '<div id="__recorderStats" style="font-size:11px;">Actions: 0</div>'
+                + '<div id="__recorderStats" style="font-size:11px;">Actions: ' + savedCount + '</div>'
                 + '<div id="__recorderLast" style="font-size:10px;color:#999;margin-top:2px;max-height:36px;overflow:hidden;"></div>'
                 + '</div>';
             document.body.appendChild(_panel);
@@ -40,13 +42,20 @@ _CAPTURE_SCRIPT = r"""
         }
     }
 
-    function _updatePanel(action) {
-        if (!window.__recorderReady) return;
-        if (action.type === 'api_response') return;
+    /* Save count to sessionStorage on every update */
+    function _saveUserCount() {
         var userCount = 0;
         for (var i = 0; i < window.__recordedActions.length; i++) {
             if (window.__recordedActions[i].type !== 'api_response') userCount++;
         }
+        sessionStorage.setItem('__recorderActionCount', userCount.toString());
+        return userCount;
+    }
+
+    function _updatePanel(action) {
+        if (!window.__recorderReady) return;
+        if (action.type === 'api_response') return;
+        var userCount = _saveUserCount();
         _statsEl.textContent = 'Actions: ' + userCount;
         var label = (action.elementText || action.element || '?').slice(0, 40);
         _lastEl.textContent = action.type + ': ' + label;
@@ -55,10 +64,7 @@ _CAPTURE_SCRIPT = r"""
     /* Expose panel updater so _PROMPT_SCRIPT can refresh it on skip */
     window.__recorderUpdatePanel = function() {
         if (!window.__recorderReady) return;
-        var userCount = 0;
-        for (var i = 0; i < window.__recordedActions.length; i++) {
-            if (window.__recordedActions[i].type !== 'api_response') userCount++;
-        }
+        var userCount = _saveUserCount();
         _statsEl.textContent = 'Actions: ' + userCount;
     };
 
@@ -105,19 +111,60 @@ _CAPTURE_SCRIPT = r"""
         var tag = (target.tagName || '').toLowerCase();
         var type = (target.type || '').toLowerCase();
 
-        var interactive = ['a','button','input','select','textarea','summary','option','optgroup'];
+        var interactive = ['a','button','input','select','textarea','summary','option','optgroup','label','details','figure'];
         var role = target.getAttribute('role') || '';
         var isClickable = interactive.indexOf(tag) !== -1 ||
             role === 'button' || role === 'link' ||
             role === 'option' || role === 'menuitem' ||
             role === 'menuitemcheckbox' || role === 'menuitemradio' ||
+            role === 'radio' || role === 'radiogroup' ||
+            role === 'switch' || role === 'checkbox' ||
+            role === 'dialog' || role === 'alertdialog' ||
+            role === 'searchbox' || role === 'slider' ||
+            role === 'spinbutton' || role === 'cell' ||
+            role === 'gridcell' || role === 'columnheader' ||
+            role === 'rowheader' || role === 'menubar' ||
+            role === 'toolbar' || role === 'figure' ||
+            role === 'tabpanel' || role === 'note' ||
             role === 'listbox' || role === 'combobox' || role === 'tab' ||
-            role === 'treeitem' || role === 'gridcell' ||
+            role === 'treeitem' || role === 'tree' ||
+            role === 'status' || role === 'alert' || role === 'log' ||
+            role === 'math' || role === 'img' ||
+            role === 'presentation' || role === 'none' ||
             target.closest('select') ||
             target.closest('[role="listbox"]') ||
             target.closest('[role="menu"]') ||
             target.closest('[role="combobox"]') ||
             target.closest('[role="tablist"]') ||
+            target.closest('[role="radio"]') ||
+            target.closest('[role="radiogroup"]') ||
+            target.closest('[role="switch"]') ||
+            target.closest('[role="checkbox"]') ||
+            target.closest('[role="dialog"]') ||
+            target.closest('[role="alertdialog"]') ||
+            target.closest('[role="searchbox"]') ||
+            target.closest('[role="slider"]') ||
+            target.closest('[role="spinbutton"]') ||
+            target.closest('[role="cell"]') ||
+            target.closest('[role="gridcell"]') ||
+            target.closest('[role="columnheader"]') ||
+            target.closest('[role="rowheader"]') ||
+            target.closest('[role="menubar"]') ||
+            target.closest('[role="toolbar"]') ||
+            target.closest('[role="figure"]') ||
+            target.closest('[role="tabpanel"]') ||
+            target.closest('[role="note"]') ||
+            target.closest('[role="tree"]') ||
+            target.closest('[role="treeitem"]') ||
+            target.closest('[role="status"]') ||
+            target.closest('[role="alert"]') ||
+            target.closest('[role="math"]') ||
+            target.closest('[role="img"]') ||
+            target.closest('label') ||
+            target.closest('details') ||
+            target.closest('figure') ||
+            target.closest('[contenteditable="true"]') ||
+            target.closest('[contenteditable=""]') ||
             target.onclick ||
             target.closest('[onclick]') ||
             target.closest('button') ||
@@ -367,6 +414,8 @@ _PROMPT_SCRIPT = r"""
         var desc1 = data.d1 || '';
         var desc2 = data.d2 || '';
         var cb = _popup._callback;
+        _popup._handled = true;
+        if (_popup._closeTimer) clearInterval(_popup._closeTimer);
         _closePopup();
         if (cb) cb(desc1, desc2);
     }
@@ -388,6 +437,7 @@ _PROMPT_SCRIPT = r"""
             return;
         }
         _popup._callback = onConfirm;
+        _popup._handled = false;
 
         /* Listen for messages from popup */
         window.addEventListener('message', _onPopupMessage);
@@ -414,6 +464,17 @@ _PROMPT_SCRIPT = r"""
 
         /* Mark signer as open (prevents action recording in main window) */
         _markSignerOpen();
+
+        /* Monitor popup closure without confirm — treat as Skip */
+        _popup._closeTimer = setInterval(function() {
+            if (_popup && _popup.closed && !_popup._handled) {
+                _popup._handled = true;
+                clearInterval(_popup._closeTimer);
+                var cb = _popup._callback;
+                _closePopup();
+                if (cb) cb('', '');
+            }
+        }, 300);
     }
 
     /* ---- Escapers ---- */
