@@ -222,10 +222,10 @@ class RecordedActionRead(BaseModel):
     request_method: str | None = None
     request_url: str | None = None
     request_headers: dict | None = None
-    request_body: dict | None = None
+    request_body: dict | str | list | None = None
     response_status: int | None = None
     response_headers: dict | None = None
-    response_body: dict | None = None
+    response_body: dict | str | list | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

@@ -161,11 +161,11 @@ class RecordedAction(Base):
     request_method: Mapped[str | None] = mapped_column(String(16), nullable=True)
     request_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     request_headers: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-    request_body: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    request_body: Mapped[dict | str | list | None] = mapped_column(JSON, nullable=True)
 
     response_status: Mapped[int | None] = mapped_column(Integer, nullable=True)
     response_headers: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-    response_body: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    response_body: Mapped[dict | str | None] = mapped_column(JSON, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 

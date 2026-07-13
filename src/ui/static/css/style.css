@@ -679,6 +679,33 @@ tr:hover td {
     border-top: 1px solid var(--border);
 }
 
+/* Clickable table row */
+.clickable-row {
+    cursor: pointer;
+}
+.clickable-row:hover td {
+    background: var(--bg-hover, rgba(0,0,0,.03));
+}
+
+/* JSON block in detail view */
+.json-block {
+    background: var(--bg-surface2, #f5f5f5);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    font: 12px/1.5 'SF Mono', 'Fira Code', monospace;
+    overflow-x: auto;
+    max-height: 300px;
+    overflow-y: auto;
+    margin-top: 4px;
+    white-space: pre;
+}
+
+/* Wider modal for action detail */
+.modal-wide {
+    max-width: 720px;
+}
+
 /* ============================================================
    Toast
    ============================================================ */

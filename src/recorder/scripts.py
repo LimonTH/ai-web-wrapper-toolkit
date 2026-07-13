@@ -190,8 +190,7 @@ _CAPTURE_SCRIPT = r"""
 
     var _origFetch = window.fetch;
     window.fetch = function() {
-        /* Still capture API responses even when modal is open,
-           but don't link to the wrong action if modal is blocking */
+        /* Capture API responses linked to recent user actions. */
         var args = arguments;
         var url = (args[0] && args[0].url) ? args[0].url : (args[0] || '');
         var opts = args[1] || {};

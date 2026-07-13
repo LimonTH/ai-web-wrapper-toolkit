@@ -153,9 +153,10 @@ async def start_recording(
 
 
 def _try_parse_json(value: Any) -> Any:
-    """Tries to parse a JSON string, otherwise returns as-is."""
+    """Tries to parse a JSON string into a dict; returns string as-is if not valid JSON."""
     if isinstance(value, str):
-        return safe_json_parse(value, default=value, silent=True)
+        result = safe_json_parse(value, default=value, silent=True)
+        return result
     return value
 
 

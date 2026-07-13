@@ -136,19 +136,67 @@
         }
     });
 
+    var _actionsData = null;
+
+    function _fmt(o) {
+        if (o === null || o === undefined) return '<span class="text-secondary">-</span>';
+        if (typeof o === 'object') return '<pre class="json-block">' + _esc(JSON.stringify(o, null, 2)) + '</pre>';
+        return _esc(String(o));
+    }
+
+    function _esc(s) {
+        return (''+s).replace(/&/g,'&').replace(/</g,'<').replace(/>/g,'>').replace(/"/g,'"');
+    }
+
+    function _showActionDetail(a) {
+        const el = document.getElementById('modal');
+        let html = '<div class="modal-overlay"><div class="modal modal-wide">';
+        html += '<h2>Action #' + a.sequence + ' <span class="tag">' + a.action_type + '</span></h2>';
+        html += '<div class="section-divider" style="margin:16px 0 12px;">Description</div>';
+        html += '<div><strong>What did you do:</strong> ' + (a.user_description ? _esc(a.user_description) : '<span class="text-secondary">-</span>') + '</div>';
+        html += '<div style="margin-top:6px;"><strong>Result:</strong> ' + (a.result_description ? _esc(a.result_description) : '<span class="text-secondary">-</span>') + '</div>';
+
+        html += '<div class="section-divider" style="margin:16px 0 12px;">Action</div>';
+        html += '<div><strong>Element:</strong> ' + _esc(a.action_context?.element || '-') + '</div>';
+        html += '<div><strong>Element text:</strong> ' + _esc(a.action_context?.elementText || '-') + '</div>';
+        html += '<div><strong>Selector:</strong> <code>' + _esc(a.action_context?.selector || '-') + '</code></div>';
+        html += '<div><strong>URL:</strong> <span class="mono text-sm">' + _esc(a.page_url || '-') + '</span></div>';
+
+        if (a.request_url) {
+            html += '<div class="section-divider" style="margin:16px 0 12px;">Request</div>';
+            html += '<div><strong>Method:</strong> <span class="tag">' + _esc(a.request_method || 'GET') + '</span></div>';
+            html += '<div><strong>URL:</strong> <span class="mono text-sm">' + _esc(a.request_url) + '</span></div>';
+            if (a.request_headers) html += '<div style="margin-top:8px;"><strong>Headers:</strong>' + _fmt(a.request_headers) + '</div>';
+            if (a.request_body) html += '<div style="margin-top:8px;"><strong>Body:</strong>' + _fmt(a.request_body) + '</div>';
+        }
+
+        if (a.response_status) {
+            html += '<div class="section-divider" style="margin:16px 0 12px;">Response</div>';
+            html += '<div><strong>Status:</strong> <span class="tag tag-' + (a.response_status < 400 ? 'success' : 'warning') + '">' + a.response_status + '</span></div>';
+            if (a.response_headers) html += '<div style="margin-top:8px;"><strong>Headers:</strong>' + _fmt(a.response_headers) + '</div>';
+            if (a.response_body) html += '<div style="margin-top:8px;"><strong>Body:</strong>' + _fmt(a.response_body) + '</div>';
+        }
+
+        html += '<div class="modal-actions"><button class="btn" onclick="document.getElementById(\'modal\').innerHTML = _savedRecordingView">Back</button>';
+        html += '<button class="btn" onclick="this.closest(\'.modal-overlay\').remove()">Close</button></div></div></div>';
+        el.innerHTML = html;
+    }
+
     async function viewRecording(id) {
         try {
             const resp = await fetch('/api/actions/recordings/' + id);
             const data = await resp.json();
-            let html = '<div class="modal-overlay" ><div class="modal"><h2>Recording: ' + id.slice(0, 8) + '</h2>';
+            _actionsData = data.actions || [];
+
+            let html = '<div class="modal-overlay"><div class="modal"><h2>Recording: ' + id.slice(0, 8) + '</h2>';
             html += '<div style="margin-bottom:12px;font-size:12px;color:var(--text-secondary);">';
-            html += 'Status: ' + data.status + ' | Actions: ' + (data.actions || []).length;
+            html += 'Status: ' + data.status + ' | Actions: ' + _actionsData.length;
             html += ' | Created: ' + new Date(data.created_at).toLocaleString();
             html += '</div>';
-            if (data.actions && data.actions.length > 0) {
-                html += '<table><thead><tr><th>#</th><th>Type</th><th>Description</th><th>Result</th><th>Element</th></tr></thead><tbody>';
-                data.actions.forEach(function (a) {
-                    html += '<tr>';
+            if (_actionsData.length > 0) {
+                html += '<div class="table-wrapper"><table><thead><tr><th>#</th><th>Type</th><th>Description</th><th>Result</th><th>Element</th></tr></thead><tbody>';
+                _actionsData.forEach(function (a, i) {
+                    html += '<tr class="clickable-row" onclick="showActionDetail(' + i + ')">';
                     html += '<td>' + a.sequence + '</td>';
                     html += '<td><span class="tag">' + a.action_type + '</span></td>';
                     html += '<td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + (a.user_description || '') + '">' + (a.user_description || '-') + '</td>';
@@ -156,7 +204,7 @@
                     html += '<td class="mono text-sm" style="max-width:120px;overflow:hidden;text-overflow:ellipsis;">' + (a.action_context?.elementText || '-') + '</td>';
                     html += '</tr>';
                 });
-                html += '</tbody></table>';
+                html += '</tbody></table></div>';
             } else {
                 html += '<div class="empty-state"><p>No actions recorded.</p></div>';
             }
@@ -165,6 +213,13 @@
         } catch (e) {
             showToast('Failed to load recording', 'error');
         }
+    }
+
+    function showActionDetail(idx) {
+        const a = _actionsData[idx];
+        if (!a) return;
+        _savedRecordingView = document.getElementById('modal').innerHTML;
+        _showActionDetail(a);
     }
 </script>
 {% endblock %}
