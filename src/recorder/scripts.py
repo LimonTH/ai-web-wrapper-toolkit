@@ -1,5 +1,5 @@
 """
-JS-скрипты для инжекции в браузер через Playwright.
+JS-scripts for inject in browser with Playwright.
 """
 
 _CAPTURE_SCRIPT = r"""
@@ -82,17 +82,17 @@ _CAPTURE_SCRIPT = r"""
     function _push(action) {
         window.__recordedActions.push(action);
         _updatePanel(action);
-        if (typeof window.__python_recorder_on_action === 'function') {
-            try { window.__python_recorder_on_action(JSON.stringify(action)); } catch(ignored) {}
-        }
+        /* Don't send to Python yet — wait for user to sign (confirm/skip).
+           Only send after signing, not on initial capture. */
         if (typeof window.__recorderOnAction === 'function') {
             try { window.__recorderOnAction(action); } catch(ignored) {}
         }
     }
 
-    /* Block event capture while the signature modal is open */
+    /* Block event capture while the signature modal/popup is open */
     function _isModalOpen() {
-        return document.getElementById('__recorderModal') !== null;
+        return document.getElementById('__recorderModal') !== null
+            || window.__signerOpen === true;
     }
 
     document.addEventListener('click', function(e) {
@@ -108,11 +108,21 @@ _CAPTURE_SCRIPT = r"""
             role === 'button' || role === 'link' ||
             role === 'option' || role === 'menuitem' ||
             role === 'menuitemcheckbox' || role === 'menuitemradio' ||
+            role === 'listbox' || role === 'combobox' || role === 'tab' ||
+            role === 'treeitem' || role === 'gridcell' ||
             target.closest('select') ||
+            target.closest('[role="listbox"]') ||
+            target.closest('[role="menu"]') ||
+            target.closest('[role="combobox"]') ||
+            target.closest('[role="tablist"]') ||
             target.onclick ||
             target.closest('[onclick]') ||
             target.closest('button') ||
-            target.closest('a[href]');
+            target.closest('a[href]') ||
+            target.hasAttribute('tabindex') ||
+            target.closest('[tabindex]') ||
+            (typeof target.onmousedown === 'function') ||
+            (typeof target.onmouseup === 'function');
         if (!isClickable) return;
 
         var seq = ++window.__actionId;
@@ -251,202 +261,197 @@ _PROMPT_SCRIPT = r"""
     window.__recorderPromptInstalled = true;
 
     var _origOnAction = window.__recorderOnAction || function() {};
-    var _overlay = null;
-    var _activeCallback = null;
+    var _popup = null;
 
-    var _focusBlockers = null;
-    var _eventGuard = null;
-
-    function _installFocusBlockers() {
-        if (_focusBlockers) return;
-        function _blockFocusLeak(e) {
-            if (!_overlay) return;
-            var related = e.relatedTarget;
-            if (related && _overlay.contains(related) && !_overlay.contains(e.target)) {
-                e.stopPropagation();
-                e.stopImmediatePropagation();
-            }
-        }
-        document.addEventListener('focusout', _blockFocusLeak, true);
-        document.addEventListener('blur', _blockFocusLeak, true);
-        _focusBlockers = { focusout: _blockFocusLeak, blur: _blockFocusLeak };
+    function _markSignerOpen() {
+        window.__signerOpen = true;
     }
 
-    function _removeFocusBlockers() {
-        if (!_focusBlockers) return;
-        document.removeEventListener('focusout', _focusBlockers.focusout, true);
-        document.removeEventListener('blur', _focusBlockers.blur, true);
-        _focusBlockers = null;
+    function _markSignerClosed() {
+        /* Delay clearing the flag so residual click events from popup
+           close don't get recorded as new actions. */
+        setTimeout(function() { window.__signerOpen = false; }, 300);
     }
 
-    /* Event guard on window (capture) — fires BEFORE document-level handlers.
-       Prevents page modal/popup capture handlers from swallowing clicks on our signer. */
-    function _installEventGuard() {
-        if (_eventGuard) return;
-        function _guard(e) {
-            if (!_overlay) return;
-            /* elementFromPoint uses visual stacking — our modal is topmost */
-            var target = document.elementFromPoint(e.clientX, e.clientY);
-            if (target && _overlay.contains(target)) {
-                /* This event belongs to our modal — stop page handlers from seeing it */
-                e.stopPropagation();
-            }
-        }
-        window.addEventListener('mousedown', _guard, true);
-        window.addEventListener('pointerdown', _guard, true);
-        window.addEventListener('touchstart', _guard, true);
-        _eventGuard = { mousedown: _guard, pointerdown: _guard, touchstart: _guard };
-    }
+    /* ---- Build signer HTML for popup window ---- */
 
-    function _removeEventGuard() {
-        if (!_eventGuard) return;
-        window.removeEventListener('mousedown', _eventGuard.mousedown, true);
-        window.removeEventListener('pointerdown', _eventGuard.pointerdown, true);
-        window.removeEventListener('touchstart', _eventGuard.touchstart, true);
-        _eventGuard = null;
-    }
-
-    function _closeModal() {
-        if (_overlay) {
-            _overlay.parentNode.removeChild(_overlay);
-            _overlay = null;
-            _activeCallback = null;
-        }
-        _removeFocusBlockers();
-        _removeEventGuard();
-    }
-
-    function _showModal(action, onConfirm) {
-        _closeModal();
-        _installFocusBlockers();
-        _installEventGuard();
-
+    function _buildSignerHTML(action) {
         var actionTypeLabel = action.type === 'click' ? 'click' :
-                              action.type === 'submit' ? 'form submit' :
-                              action.type === 'input_enter' ? 'text input' :
-                              action.type;
+            action.type === 'submit' ? 'form submit' :
+            action.type === 'input_enter' ? 'text input' : action.type;
+        var elementInfo = _escH((action.elementText||action.element||'element').slice(0,60));
+        var defaultAnswer = action.type === 'click' ? 'Clicked on '+elementInfo :
+            (action.type==='submit'?'Submitted form':'Entered text');
+        var pageUrl = _escH((action.pageUrl||'').slice(0,80));
+        var badgeColor = action.type==='click'?'#e94560':action.type==='submit'?'#f5a623':'#4a90d9';
 
-        var elementInfo = (action.elementText || action.element || 'element').slice(0, 60);
-        var defaultAnswer = action.type === 'click'
-            ? 'Clicked on ' + elementInfo
-            : (action.type === 'submit' ? 'Submitted form' : 'Entered text');
-        var pageUrl = (action.pageUrl || '').slice(0, 80);
-
-        var el = document.createElement('div');
-        el.id = '__recorderModal';
-        el.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;'
-            + 'z-index:2147483646;background:rgba(0,0,0,0.55);'
-            + 'display:flex;align-items:center;justify-content:center;';
-        el.innerHTML =
-            '<div style="background:#1a1a2e;color:#e0e0e0;border:1px solid #e94560;'
-                + 'border-radius:12px;padding:24px 28px;font:14px/1.5 sans-serif;'
-                + 'min-width:420px;max-width:520px;box-shadow:0 8px 40px rgba(0,0,0,0.6);">'
-            + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">'
-            + '<div style="color:#e94560;font-weight:bold;font-size:16px;">&#x270D;&#xFE0F; Sign Action #' + action.seq + '</div>'
-            + '<span class="__recorderModalBadge" style="background:' + (action.type === 'click' ? '#e94560' : action.type === 'submit' ? '#f5a623' : '#4a90d9') + ';color:#fff;border-radius:4px;padding:2px 10px;font-size:12px;font-weight:600;">' + actionTypeLabel + '</span>'
-            + '</div>'
-            + '<div style="background:#16213e;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px;word-break:break-word;">'
-            + '<div style="color:#aaa;margin-bottom:4px;">Element: <span style="color:#e0e0e0;">' + _escHtml(elementInfo) + '</span></div>'
-            + (pageUrl ? '<div style="color:#aaa;">URL: <span style="color:#e0e0e0;font-size:12px;">' + _escHtml(pageUrl) + '</span></div>' : '')
-            + '</div>'
-            + '<label style="display:block;font-size:13px;color:#aaa;margin-bottom:4px;">1/2. What did you do?</label>'
-            + '<input id="__recorderDesc1" type="text" value="' + _escAttr(defaultAnswer) + '"'
-                + 'style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #2a2a4a;border-radius:6px;'
-                + 'background:#0f0f23;color:#e0e0e0;font:13px/1.4 sans-serif;margin-bottom:12px;outline:none;">'
-            + '<label style="display:block;font-size:13px;color:#aaa;margin-bottom:4px;">2/2. What happened? <span style="color:#666;">(result, new content, error)</span></label>'
-            + '<input id="__recorderDesc2" type="text" placeholder="e.g. response appeared, page loaded..."'
-                + 'style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #2a2a4a;border-radius:6px;'
-                + 'background:#0f0f23;color:#e0e0e0;font:13px/1.4 sans-serif;margin-bottom:18px;outline:none;">'
-            + '<div style="display:flex;justify-content:flex-end;gap:10px;">'
-            + '<button id="__recorderModalSkip" style="padding:8px 16px;border:1px solid #333;border-radius:6px;background:transparent;color:#888;cursor:pointer;font-size:13px;">Skip</button>'
-            + '<button id="__recorderModalConfirm" style="padding:8px 20px;border:none;border-radius:6px;background:#e94560;color:#fff;cursor:pointer;font-weight:600;font-size:13px;">&#x2714; Confirm</button>'
-            + '</div>'
-            + '</div></div>';
-
-        document.body.appendChild(el);
-        _overlay = el;
-
-        /* Stop all mouse/pointer events on modal from reaching page dropdown handlers */
-        ['click','mousedown','mouseup','pointerdown','pointerup','touchstart','touchend'].forEach(function(evt) {
-            el.addEventListener(evt, function(e) { e.stopPropagation(); });
-        });
-
-        /* Prevent focus from leaving page elements when clicking non-input parts of modal */
-        el.addEventListener('mousedown', function(e) {
-            var tag = (e.target.tagName || '').toLowerCase();
-            if (tag !== 'input' && tag !== 'textarea') {
-                e.preventDefault();
-            }
-        }, true);
-
-        var inp1 = document.getElementById('__recorderDesc1');
-        var inp2 = document.getElementById('__recorderDesc2');
-
-        document.getElementById('__recorderModalConfirm').addEventListener('click', function() {
-            var d1 = inp1.value.trim();
-            var d2 = inp2.value.trim();
-            _closeModal();
-            onConfirm(d1, d2);
-        });
-
-        document.getElementById('__recorderModalSkip').addEventListener('click', function() {
-            _closeModal();
-            onConfirm('', '');
-        });
-
+        return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Sign Action #'+action.seq+'</title><style>'
+            +'*{margin:0;padding:0;box-sizing:border-box}'
+            +'body{font:14px/1.5 sans-serif;background:#1a1a2e;color:#e0e0e0;padding:24px 28px;min-width:420px;max-width:520px}'
+            +'.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}'
+            +'.title{color:#e94560;font-weight:bold;font-size:16px}'
+            +'.badge{color:#fff;border-radius:4px;padding:2px 10px;font-size:12px;font-weight:600}'
+            +'.info{background:#16213e;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px;word-break:break-word}'
+            +'.info label{color:#aaa;display:block}.info span{color:#e0e0e0}.info .url{font-size:12px}'
+            +'.field-label{display:block;font-size:13px;color:#aaa;margin-bottom:4px}'
+            +'.field-label .hint{color:#666}'
+            +'input[type=text]{width:100%;padding:10px 12px;border:1px solid #2a2a4a;border-radius:6px;'
+            +'background:#0f0f23;color:#e0e0e0;font:13px/1.4 sans-serif;margin-bottom:12px;outline:none}'
+            +'input[type=text]:focus{border-color:#e94560}'
+            +'.btns{display:flex;justify-content:flex-end;gap:10px;margin-top:6px}'
+            +'.btn-skip{padding:8px 16px;border:1px solid #333;border-radius:6px;background:transparent;color:#888;cursor:pointer;font-size:13px}'
+            +'.btn-ok{padding:8px 20px;border:none;border-radius:6px;background:#e94560;color:#fff;cursor:pointer;font-weight:600;font-size:13px}'
+            +'</style></head><body>'
+            +'<div class="header"><div class="title">&#x270D;&#xFE0F; Sign Action #'+action.seq+'</div>'
+            +'<span class="badge" style="background:'+badgeColor+'">'+actionTypeLabel+'</span></div>'
+            +'<div class="info"><label>Element: <span>'+elementInfo+'</span></label>'
+            +(pageUrl?'<label class="url">URL: <span>'+pageUrl+'</span></label>':'')
+            +'</div>'
+            +'<label class="field-label">1/2. What did you do?</label>'
+            +'<input id="d1" type="text" value="'+_escAttr(defaultAnswer)+'" autofocus>'
+            +'<label class="field-label">2/2. What happened? <span class="hint">(result, new content, error)</span></label>'
+            +'<input id="d2" type="text" placeholder="e.g. response appeared, page loaded...">'
+            +'<div class="btns">'
+            +'<button id="skip" class="btn-skip">Skip</button>'
+            +'<button id="ok" class="btn-ok">&#x2714; Confirm</button>'
+            +'</div>'
+            +'<script>'
+            +'var d1=document.getElementById("d1"),d2=document.getElementById("d2");'
+            +'function send(desc1,desc2){'
+            +'if(window.opener&&!window.opener.closed){window.opener.postMessage({d1:desc1,d2:desc2},"*");}'
+            +'window.close();'
+            +'}'
+            +'document.getElementById("ok").onclick=function(){send(d1.value.trim(),d2.value.trim());};'
+            +'document.getElementById("skip").onclick=function(){send("","");};'
+            +'d1.onkeydown=function(e){if(e.key==="Enter"){e.preventDefault();d2.focus();}};'
+            +'d2.onkeydown=function(e){if(e.key==="Enter"){e.preventDefault();send(d1.value.trim(),d2.value.trim());}};'
+            +'document.body.addEventListener("keydown",function(e){'
+            +'if(e.key==="Escape"){send("","");return;}'
+            +'if(e.key==="Tab"){'
+            +'var all=document.querySelectorAll("input,button");'
+            +'var f=all[0],l=all[all.length-1];'
+            +'if(e.shiftKey&&document.activeElement===f){e.preventDefault();l.focus();}'
+            +'else if(!e.shiftKey&&document.activeElement===l){e.preventDefault();f.focus();}'
+            +'}'
+            +'});'
+            +'<\/script></body></html>';
     }
 
-    function _escHtml(s) {
+    /* ---- Popup lifecycle ---- */
+
+    function _closePopup() {
+        if (_popup && !_popup.closed) {
+            try { _popup.close(); } catch(ignored) {}
+        }
+        _popup = null;
+        window.removeEventListener('message', _onPopupMessage);
+        _markSignerClosed();
+    }
+
+    function _onPopupMessage(e) {
+        if (!_popup) return;
+        if (e.source !== _popup) return;
+        var data = e.data;
+        if (typeof data !== 'object' || !('d1' in data)) return;
+
+        var desc1 = data.d1 || '';
+        var desc2 = data.d2 || '';
+        var cb = _popup._callback;
+        _closePopup();
+        if (cb) cb(desc1, desc2);
+    }
+
+    function _openSigner(action, onConfirm) {
+        _closePopup();
+
+        /* Open popup synchronously (within user gesture — popup blockers allow it).
+           Size and position: centered-ish, visible next to main window. */
+        var w = 500, h = 420;
+        var left = Math.max(0, (screen.width - w) / 2);
+        var top = Math.max(0, (screen.height - h) / 3);
+
+        _popup = window.open('about:blank', '_blank',
+            'width='+w+',height='+h+',left='+left+',top='+top
+            +',menubar=no,toolbar=no,location=no,status=no,scrollbars=no');
+        if (!_popup) {
+            /* Popup blocked — fall back to iframe approach */
+            onConfirm('', '');
+            return;
+        }
+        _popup._callback = onConfirm;
+
+        /* Listen for messages from popup */
+        window.addEventListener('message', _onPopupMessage);
+
+        /* Write signer content */
+        var doc = _popup.document;
+        doc.open();
+        doc.write(_buildSignerHTML(action));
+        doc.close();
+
+        /* Auto-size popup to fit content */
+        try {
+            var body = doc.body;
+            var html = doc.documentElement;
+            var cw = Math.max(body.scrollWidth, body.offsetWidth, html.clientWidth);
+            var ch = Math.max(body.scrollHeight, body.offsetHeight, html.clientHeight);
+            _popup.resizeTo(cw + 16, ch + 16);
+        } catch(ignored) {}
+
+        /* Focus the popup */
+        try { _popup.focus(); } catch(ignored) {}
+
+        /* Mark signer as open (prevents action recording in main window) */
+        _markSignerOpen();
+    }
+
+    /* ---- Escapers ---- */
+
+    function _escH(s) {
         if (!s) return '';
-        return ('' + s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        return (''+s).replace(/&/g,'\x26amp;').replace(/</g,'\x26lt;').replace(/>/g,'\x26gt;').replace(/"/g,'\x26quot;');
     }
     function _escAttr(s) {
         if (!s) return '';
-        return ('' + s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+        return (''+s).replace(/&/g,'\x26amp;').replace(/"/g,'\x26quot;').replace(/'/g,'\x26#39;');
     }
+
+    /* ---- Action handler ---- */
 
     var _pendingQueue = [];
 
     window.__recorderOnAction = function(action) {
-        if (action.type === 'api_response') {
-            return _origOnAction(action);
-        }
+        if (action.type === 'api_response') return _origOnAction(action);
+        if (_popup && !_popup.closed) { _pendingQueue.push(action); return; }
 
-        if (_overlay) {
-            _pendingQueue.push(action);
-            return;
-        }
-
-        /* Defer modal — let the page process the event first (dropdown open, etc.) */
-        setTimeout(function() {
-            _showModal(action, function(desc1, desc2) {
-                /* Skip = remove action from recording entirely */
-                if (desc1 === '' && desc2 === '') {
-                    var idx = window.__recordedActions.indexOf(action);
-                    if (idx !== -1) window.__recordedActions.splice(idx, 1);
-                    if (typeof window.__recorderUpdatePanel === 'function') {
-                        window.__recorderUpdatePanel();
-                    }
-                } else {
-                    action.userDescription = desc1;
-                    action.resultDescription = desc2;
+        /* Open popup IMMEDIATELY (while still in user-gesture context).
+           The site will process the click after we return — its dialog
+           opens in the MAIN window, our signer opens in a SEPARATE popup.
+           They cannot interfere with each other. */
+        _openSigner(action, function(desc1, desc2) {
+            if (desc1 === '' && desc2 === '') {
+                var idx = window.__recordedActions.indexOf(action);
+                if (idx !== -1) window.__recordedActions.splice(idx, 1);
+                if (typeof window.__recorderUpdatePanel === 'function') {
+                    window.__recorderUpdatePanel();
                 }
-                _origOnAction(action);
+            } else {
+                action.userDescription = desc1;
+                action.resultDescription = desc2;
+            }
+            _origOnAction(action);
 
-                /* Sync the updated action (with descriptions) to Python.
-                   Skip case: don't re-send (already sent raw from _push) */
-                if (typeof window.__python_recorder_on_action === 'function') {
-                    if (desc1 !== '' || desc2 !== '') {
-                        try { window.__python_recorder_on_action(JSON.stringify(action)); } catch(ignored) {}
-                    }
+            if (typeof window.__python_recorder_on_action === 'function') {
+                if (desc1 !== '' || desc2 !== '') {
+                    try { window.__python_recorder_on_action(JSON.stringify(action)); } catch(ignored) {}
                 }
+            }
 
-                if (_pendingQueue.length > 0) {
-                    var next = _pendingQueue.shift();
-                    window.__recorderOnAction(next);
-                }
-            });
-        }, 0);
+            if (_pendingQueue.length > 0) {
+                var next = _pendingQueue.shift();
+                window.__recorderOnAction(next);
+            }
+        });
     };
 })();
 """
